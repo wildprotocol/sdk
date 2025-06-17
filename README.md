@@ -11,10 +11,17 @@ A TypeScript/JavaScript SDK for interacting with the Wildcard Deployer contract,
 - 🔧 **TypeScript Support**: Full type safety and IntelliSense
 - ⚡ **Easy Integration**: Simple and intuitive API
 
+## Running examples
+
+```bash
+pnpm install
+PRIVATE_KEY=$PRIVATE_KEY ts-node examples/basic-usage.ts
+```
+
 ## Installation
 
 ```bash
-npm install github:wildprotocol/sdk
+pnpm install github:wildprotocol/sdk
 ```
 
 ## Examples
