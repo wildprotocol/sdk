@@ -21,7 +21,7 @@ PRIVATE_KEY=$PRIVATE_KEY ts-node examples/basic-usage.ts
 ## Installation
 
 ```bash
-pnpm install github:wildprotocol/sdk
+pnpm install wildcard-sdk
 ```
 
 ## Examples
