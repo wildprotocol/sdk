@@ -5,4 +5,5 @@ export { DeployerSDK } from './deployer-sdk';
 export * from './types';
 
 // ABI export
-export { DEPLOYER_ABI } from './abi'; 
+export { DEPLOYER_ABI } from './deployer-abi'; 
+export { STATEMANAGER_ABI } from './statemanager-abi'; 

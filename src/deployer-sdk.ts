@@ -1,6 +1,7 @@
 import { ethers, ContractTransactionResponse, parseEther, formatEther, BigNumberish } from 'ethers';
 import { Contract } from 'ethers';
-import { DEPLOYER_ABI } from './abi';
+import { DEPLOYER_ABI } from './deployer-abi';
+import { STATEMANAGER_ABI } from './statemanager-abi'
 import {
   SDKConfig,
   BuyQuote,
@@ -11,7 +12,7 @@ import {
   TransactionOptions,
   TokenDeploymentConfig
 } from './types';
-
+import { CONTRACTS, SupportedNetworks } from './config';
 const ERC20_ABI = [
   'function approve(address spender, uint256 amount) returns (bool)',
   'function allowance(address owner, address spender) view returns (uint256)',
@@ -22,27 +23,40 @@ const ERC20_ABI = [
 
 export class DeployerSDK {
   private contract: ethers.Contract;
+  private stateManagerContract: ethers.Contract;
   private provider: ethers.Provider;
   private signer?: ethers.Signer;
 
-  constructor(config: SDKConfig) {
-    // Initialize provider
-    if (config.rpcUrl) {
-      this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
-    } else {
+  constructor(config: SDKConfig & { network: SupportedNetworks }) {
+    if (!config.rpcUrl) {
       throw new Error('RPC URL is required');
     }
 
-    // Initialize signer if private key is provided
+    const networkContracts = CONTRACTS[config.network];
+    if (!networkContracts) {
+      throw new Error(`Unsupported network: ${config.network}`);
+    }
+
+    this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
+
     if (config.privateKey) {
       this.signer = new ethers.Wallet(config.privateKey, this.provider);
     } else if (config.signer) {
       this.signer = config.signer;
     }
 
-    // Initialize contract
     const signerOrProvider = this.signer || this.provider;
-    this.contract = new ethers.Contract(config.contractAddress, DEPLOYER_ABI, signerOrProvider);
+
+    this.contract = new ethers.Contract(networkContracts.DEPLOYER_ADDRESS, DEPLOYER_ABI, signerOrProvider);
+    this.stateManagerContract = new ethers.Contract(networkContracts.STATE_MANAGER_ADDRESS, STATEMANAGER_ABI, signerOrProvider);
+  }
+
+  async getState(token: string): Promise<any> {
+    try {
+      return await this.stateManagerContract.getState(token);
+    } catch (error) {
+      throw new Error(`Failed to get state from StateManager: ${error}`);
+    }
   }
 
   /**
@@ -378,4 +392,403 @@ export class DeployerSDK {
       throw new Error(`Failed to graduate token: ${error}`);
     }
   }
+
+  /**
+   * Get the token state from the contract
+   * @param token Token address
+   * @returns Token state object
+   */
+  async getTokenState(token: string): Promise<any> {
+    try {
+      return await this.stateManagerContract.getTokenState(token);
+    } catch (error) {
+      throw new Error(`Failed to get token state: ${error}`);
+    }
+  }
+
+  /**
+   * Get the pending owner of the contract
+   * @returns Pending owner address
+   */
+  async getPendingOwner(): Promise<string> {
+    try {
+      return await this.contract.pendingOwner();
+    } catch (error) {
+      throw new Error(`Failed to get pending owner: ${error}`);
+    }
+  }
+
+  /**
+   * Get the LP Locker contract address
+   * @returns LP Locker address
+   */
+  async getLpLocker(): Promise<string> {
+    try {
+      return await this.contract.lplocker();
+    } catch (error) {
+      throw new Error(`Failed to get LP locker address: ${error}`);
+    }
+  }
+
+  /**
+   * Get the Permit2 contract address
+   * @returns Permit2 address
+   */
+  async getPermit2(): Promise<string> {
+    try {
+      return await this.contract.permit2();
+    } catch (error) {
+      throw new Error(`Failed to get Permit2 address: ${error}`);
+    }
+  }
+
+  /**
+   * Get the Pool Manager contract address
+   * @returns Pool Manager address
+   */
+  async getPoolManager(): Promise<string> {
+    try {
+      return await this.contract.poolManager();
+    } catch (error) {
+      throw new Error(`Failed to get Pool Manager address: ${error}`);
+    }
+  }
+
+  /**
+   * Get the State Manager contract address
+   * @returns State Manager address
+   */
+  async getStateManager(): Promise<string> {
+    try {
+      return await this.contract.stateManager();
+    } catch (error) {
+      throw new Error(`Failed to get State Manager address: ${error}`);
+    }
+  }
+
+  /**
+   * Get the Universal Router contract address
+   * @returns Universal Router address
+   */
+  async getUniversalRouter(): Promise<string> {
+    try {
+      return await this.contract.universalRouter();
+    } catch (error) {
+      throw new Error(`Failed to get Universal Router address: ${error}`);
+    }
+  }
+
+  /**
+   * Get the maximum fee receiver count
+   * @returns Maximum fee receiver count
+   */
+  async getMaxFeeReceiverCount(): Promise<bigint> {
+    try {
+      return await this.contract.MAX_FEE_RECEIVER_COUNT();
+    } catch (error) {
+      throw new Error(`Failed to get max fee receiver count: ${error}`);
+    }
+  }
+
+  /**
+   * Get the minimum vesting start time
+   * @returns Minimum vesting start time
+   */
+  async getMinVestingStartTime(): Promise<bigint> {
+    try {
+      return await this.contract.MIN_VESTING_START_TIME();
+    } catch (error) {
+      throw new Error(`Failed to get min vesting start time: ${error}`);
+    }
+  }
+
+  /**
+   * Check if a token is whitelisted in base tokens mapping
+   * @param token Token address
+   * @returns Whether the token is whitelisted
+   */
+  async getWhitelistedBaseToken(token: string): Promise<boolean> {
+    try {
+      return await this.contract.whitelistedBaseTokens(token);
+    } catch (error) {
+      throw new Error(`Failed to get whitelisted base token: ${error}`);
+    }
+  }
+
+   /**
+   * Set base token whitelist status
+   * @param token Token address
+   * @param whitelisted Whitelist status (true/false)
+   * @param options Transaction options
+   * @returns Transaction response
+   */
+   async setBaseTokenWhitelist(
+    token: string,
+    whitelisted: boolean,
+    options?: TransactionOptions
+  ): Promise<ContractTransactionResponse> {
+    if (!this.signer) {
+      throw new Error('Signer is required for setting base token whitelist');
+    }
+
+    try {
+      const txOptions: any = {
+        gasLimit: options?.gasLimit || 500000
+      };
+      if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
+
+      return await this.contract.setBaseTokenWhitelist(token, whitelisted, txOptions);
+    } catch (error) {
+      throw new Error(`Failed to set base token whitelist: ${error}`);
+    }
+  }
+
+  /**
+   * Relinquish the state manager role
+   * @param options Transaction options
+   * @returns Transaction response
+   */
+  async relinquishStateManager(options?: TransactionOptions): Promise<ContractTransactionResponse> {
+    if (!this.signer) {
+      throw new Error('Signer is required to relinquish state manager');
+    }
+
+    try {
+      const txOptions: any = {
+        gasLimit: options?.gasLimit || 500000
+      };
+      if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
+
+      return await this.contract.relinquishStateManager(txOptions);
+    } catch (error) {
+      throw new Error(`Failed to relinquish state manager: ${error}`);
+    }
+  }
+
+  /**
+   * Withdraw dust (small remaining funds)
+   * @param options Transaction options
+   * @returns Transaction response
+   */
+  async withdrawDust(options?: TransactionOptions): Promise<ContractTransactionResponse> {
+    if (!this.signer) {
+      throw new Error('Signer is required to withdraw dust');
+    }
+
+    try {
+      const txOptions: any = {
+        gasLimit: options?.gasLimit || 500000
+      };
+      if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
+
+      return await this.contract.withdrawDust(txOptions);
+    } catch (error) {
+      throw new Error(`Failed to withdraw dust: ${error}`);
+    }
+  }
+
+  /**
+   * Get protocol fee share from StateManager
+   * @returns Protocol fee share
+   */
+  async getProtocolFeeShare(): Promise<bigint> {
+    try {
+      return await this.stateManagerContract.PROTOCOL_FEE_SHARE();
+    } catch (error) {
+      throw new Error(`Failed to get protocol fee share: ${error}`);
+    }
+  }
+
+  /**
+   * Get bonding curve fee accumulated for a token
+   * @param token Token address
+   * @returns Bonding curve fee accumulated
+   */
+  async getBondingCurveFeeAccumulated(token: string): Promise<bigint> {
+    try {
+      return await this.stateManagerContract.bondingCurveFeeAccumulated(token);
+    } catch (error) {
+      throw new Error(`Failed to get bonding curve fee accumulated: ${error}`);
+    }
+  }
+
+  /**
+   * Get auto graduation parameters for a token
+   * @param token Token address
+   * @returns Auto graduation parameters
+   */
+  async getAutoGraduationParams(token: string): Promise<any> {
+    try {
+      return await this.stateManagerContract.getAutoGraduationParams(token);
+    } catch (error) {
+      throw new Error(`Failed to get auto graduation params: ${error}`);
+    }
+  }
+
+  /**
+   * Get base token of a token
+   * @param token Token address
+   * @returns Base token address
+   */
+  async getBaseToken(token: string): Promise<string> {
+    try {
+      return await this.stateManagerContract.getBaseToken(token);
+    } catch (error) {
+      throw new Error(`Failed to get base token: ${error}`);
+    }
+  }
+
+  /**
+   * Get pool key of a token
+   * @param token Token address
+   * @returns Pool key
+   */
+  async getPoolKey(token: string): Promise<any> {
+    try {
+      return await this.stateManagerContract.getPoolKey(token);
+    } catch (error) {
+      throw new Error(`Failed to get pool key: ${error}`);
+    }
+  }
+
+  /**
+   * Get surge fee based on token deployment config
+   * @param config TokenDeploymentConfig
+   * @returns Surge fee
+   */
+  async getSurgeFee(config: TokenDeploymentConfig): Promise<bigint> {
+    try {
+      return await this.stateManagerContract.getSurgeFee(config);
+    } catch (error) {
+      throw new Error(`Failed to get surge fee: ${error}`);
+    }
+  }
+
+  /**
+   * Get token deployment config
+   * @param token Token address
+   * @returns TokenDeploymentConfig
+   */
+  async getTokenDeploymentConfig(token: string): Promise<TokenDeploymentConfig> {
+    try {
+      return await this.stateManagerContract.getTokenDeploymentConfig(token);
+    } catch (error) {
+      throw new Error(`Failed to get token deployment config: ${error}`);
+    }
+  }
+
+  /**
+   * Get token supply
+   * @param token Token address
+   * @returns Token supply
+   */
+  async getTokenSupply(token: string): Promise<bigint> {
+    try {
+      return await this.stateManagerContract.getTokenSupply(token);
+    } catch (error) {
+      throw new Error(`Failed to get token supply: ${error}`);
+    }
+  }
+
+  /**
+   * Check if token is graduated
+   * @param token Token address
+   * @returns Graduation status
+   */
+  async isGraduated(token: string): Promise<boolean> {
+    try {
+      return await this.stateManagerContract.isGraduated(token);
+    } catch (error) {
+      throw new Error(`Failed to check graduation status: ${error}`);
+    }
+  }
+
+  /**
+   * Get protocol fee recipient address
+   * @returns Protocol fee recipient address
+   */
+  async getProtocolFeeRecipient(): Promise<string> {
+    try {
+      return await this.stateManagerContract.protocolFeeRecipient();
+    } catch (error) {
+      throw new Error(`Failed to get protocol fee recipient: ${error}`);
+    }
+  }
+
+  /**
+   * Get pool fee splits for a token
+   * @param token Token address
+   * @returns Pool fee splits
+   */
+  async getPoolFeeSplits(token: string): Promise<any> {
+    try {
+      return await this.stateManagerContract.poolFeeSplits(token);
+    } catch (error) {
+      throw new Error(`Failed to get pool fee splits: ${error}`);
+    }
+  }
+
+  /**
+   * Get position manager address
+   * @returns Position manager address
+   */
+  async getPositionManager(): Promise<string> {
+    try {
+      return await this.stateManagerContract.positionManager();
+    } catch (error) {
+      throw new Error(`Failed to get position manager: ${error}`);
+    }
+  }
+
+  /**
+   * Get state view address
+   * @returns State view address
+   */
+  async getStateView(): Promise<string> {
+    try {
+      return await this.stateManagerContract.stateView();
+    } catch (error) {
+      throw new Error(`Failed to get state view: ${error}`);
+    }
+  }
+
+  /**
+   * Get token ID recipient address
+   * @returns Token ID recipient address
+   */
+  async getTokenIdRecipient(): Promise<string> {
+    try {
+      return await this.stateManagerContract.tokenIdRecipient();
+    } catch (error) {
+      throw new Error(`Failed to get token ID recipient: ${error}`);
+    }
+  }
+
+  /**
+   * Get token deployment configs mapping value
+   * @param token Token address
+   * @returns Token deployment config
+   */
+  async getTokenDeploymentConfigsMapping(token: string): Promise<TokenDeploymentConfig> {
+    try {
+      return await this.stateManagerContract.tokenDeploymentConfigs(token);
+    } catch (error) {
+      throw new Error(`Failed to get token deployment configs mapping: ${error}`);
+    }
+  }
+
+  /**
+   * Get token states mapping value
+   * @param token Token address
+   * @returns Token state
+   */
+  async getTokenStatesMapping(token: string): Promise<any> {
+    try {
+      return await this.stateManagerContract.tokenStates(token);
+    } catch (error) {
+      throw new Error(`Failed to get token states mapping: ${error}`);
+    }
+  }
+
+
 } 
