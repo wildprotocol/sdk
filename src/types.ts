@@ -51,7 +51,6 @@ export interface SellQuote {
 }
 
 export interface SDKConfig {
-  contractAddress: string;
   rpcUrl?: string;
   privateKey?: string;
   signer?: any;

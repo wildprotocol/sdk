@@ -50,15 +50,6 @@ export class DeployerSDK {
     this.contract = new ethers.Contract(networkContracts.DEPLOYER_ADDRESS, DEPLOYER_ABI, signerOrProvider);
     this.stateManagerContract = new ethers.Contract(networkContracts.STATE_MANAGER_ADDRESS, STATEMANAGER_ABI, signerOrProvider);
   }
-
-  async getState(token: string): Promise<any> {
-    try {
-      return await this.stateManagerContract.getState(token);
-    } catch (error) {
-      throw new Error(`Failed to get state from StateManager: ${error}`);
-    }
-  }
-
   /**
    * Get a buy quote for a token
    * @param token Token address
