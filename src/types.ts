@@ -42,12 +42,11 @@ export interface TokenDeploymentConfig {
 export interface BuyQuote {
   amountOut: BigNumberish;
   amountInUsed: BigNumberish;
-  fee: BigNumberish;
 }
 
 export interface SellQuote {
   amountOut: BigNumberish;
-  fee: BigNumberish;
+  amountInUsed: BigNumberish;
 }
 
 export interface SDKConfig {

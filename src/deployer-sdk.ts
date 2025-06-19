@@ -58,15 +58,15 @@ export class DeployerSDK {
    */
   async getBuyQuote(token: string, amountIn: string): Promise<BuyQuote> {
     try {
-      const result = await this.contract.getBuyQuote(token, parseEther(amountIn));
-      return {
-        amountOut: result[0],
-        amountInUsed: result[1],
-        fee: result[2]
-      };
+      await this.contract.buyQuote.estimateGas(token, parseEther(amountIn), {from: null});
     } catch (error) {
-      throw new Error(`Failed to get buy quote: ${error}`);
+      const decodedError = this.contract.interface.decodeErrorResult('QuoteAmount', (error as {data: string}).data);
+      return {
+        amountOut: decodedError.amountOut,
+        amountInUsed: decodedError.effectiveAmountIn,
+      };
     }
+    throw new Error('buy quote did not throw');
   }
 
   /**
@@ -77,14 +77,15 @@ export class DeployerSDK {
    */
   async getSellQuote(token: string, amountIn: string): Promise<SellQuote> {
     try {
-      const result = await this.contract.getSellQuote(token, parseEther(amountIn));
-      return {
-        amountOut: result[0],
-        fee: result[1]
-      };
+      await this.contract.sellQuote.estimateGas(token, parseEther(amountIn), {from: null});
     } catch (error) {
-      throw new Error(`Failed to get sell quote: ${error}`);
+      const decodedError = this.contract.interface.decodeErrorResult('QuoteAmount', (error as {data: string}).data);
+      return {
+        amountOut: decodedError.amountOut,
+        amountInUsed: decodedError.effectiveAmountIn,
+      };
     }
+    throw new Error('sell quote did not throw');
   }
 
   /**
