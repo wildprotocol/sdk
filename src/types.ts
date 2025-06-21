@@ -1,4 +1,5 @@
 import { BigNumberish } from 'ethers';
+import { WalletClient } from 'viem';
 
 export interface FeeSplit {
   recipient: string;
@@ -12,8 +13,8 @@ export interface PriceCurve {
 }
 
 export interface TokenDeploymentConfig {
-  creator: string;
-  baseToken: string;
+  creator: `0x${string}` | string; // address of the creator
+  baseToken: `0x${string}` | string; // address of the creator`;
   name: string;
   symbol: string;
   image: string;
@@ -32,7 +33,7 @@ export interface TokenDeploymentConfig {
   allowForcedGraduation: boolean;
   graduationFeeBps: BigNumberish;
   graduationFeeSplits: FeeSplit[];
-  poolFees: number;
+  poolFees: number | BigNumberish; // in basis points
   poolFeeSplits: FeeSplit[];
   surgeFeeStartingTime: BigNumberish;
   surgeFeeDuration: BigNumberish;
@@ -42,19 +43,19 @@ export interface TokenDeploymentConfig {
 export interface BuyQuote {
   amountOut: BigNumberish;
   amountInUsed: BigNumberish;
-  fee: BigNumberish;
 }
 
 export interface SellQuote {
   amountOut: BigNumberish;
-  fee: BigNumberish;
+  amountInUsed: BigNumberish;
 }
 
 export interface SDKConfig {
-  contractAddress: string;
-  rpcUrl?: string;
+  rpcUrl: string;
+  signer?: any;         // For ethers
+  walletClient?: WalletClient;   // For viem
   privateKey?: string;
-  signer?: any;
+  client: 'ethers' | 'viem';
 }
 
 export interface TransactionOptions {
@@ -69,12 +70,13 @@ export interface LaunchTokenParams {
   image: string;
   creator: string;
   baseToken: string;
+  totalSupply: string;
   teamSupply: string;
   bondingCurveSupply: string;
   liquidityPoolSupply: string;
   bondingCurveBuyFee: string;
   bondingCurveSellFee: string;
-  bondingCurveFeeSplits: { recipient: string; bps: string }[];
+  bondingCurveFeeSplits: FeeSplit[];
   bondingCurveParams: {
     prices: string[];
     numSteps: string;
@@ -82,9 +84,9 @@ export interface LaunchTokenParams {
   };
   allowForcedGraduation: boolean;
   graduationFeeBps: string;
-  graduationFeeSplits: { recipient: string; bps: string }[];
+  graduationFeeSplits: FeeSplit[];
   poolFees: number;
-  poolFeeSplits: { recipient: string; bps: string }[];
+  poolFeeSplits: FeeSplit[];
   surgeFeeDuration: string;
   maxSurgeFeeBps: string;
   vestingStartTime?: string;
@@ -106,3 +108,27 @@ export interface SellTokenParams {
   amountOutMin: string;
   to: string;
 } 
+
+export type AutoGraduationParams = {
+  tickSpacing: number;
+  startingTick: number;
+  endTick: number;
+  targetTick: number;
+  poolFee: number;
+};
+
+export type PoolKey = {
+  token0: string; // address of token0
+  token1: string; // address of token1
+  fee: number;    // pool fee in basis points
+  tickSpacing: number; // tick spacing for the pool
+};
+
+export type TokenState = {
+  tokensInBondingCurve: bigint;
+  baseTokensInBondingCurve: bigint;
+  lastPrice?: bigint;
+  totalFees?: bigint;
+  isGraduated: boolean;
+  poolAddress: `0x${string}`; // address of the pool
+};
