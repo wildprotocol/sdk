@@ -1,4 +1,5 @@
 import { BigNumberish } from 'ethers';
+import { WalletClient } from 'viem';
 
 export interface FeeSplit {
   recipient: string;
@@ -52,7 +53,7 @@ export interface SellQuote {
 export interface SDKConfig {
   rpcUrl: string;
   signer?: any;         // For ethers
-  walletClient?: any;   // For viem
+  walletClient?: WalletClient;   // For viem
   privateKey?: string;
   client: 'ethers' | 'viem';
 }
@@ -120,13 +121,14 @@ export type PoolKey = {
   token0: string; // address of token0
   token1: string; // address of token1
   fee: number;    // pool fee in basis points
+  tickSpacing: number; // tick spacing for the pool
 };
 
 export type TokenState = {
   tokensInBondingCurve: bigint;
   baseTokensInBondingCurve: bigint;
-  lastPrice: bigint;
-  totalFees: bigint;
-  graduated: boolean;
+  lastPrice?: bigint;
+  totalFees?: bigint;
+  isGraduated: boolean;
   poolAddress: `0x${string}`; // address of the pool
 };

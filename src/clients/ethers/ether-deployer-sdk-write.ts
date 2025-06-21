@@ -1,8 +1,8 @@
 import { ethers, ContractTransactionResponse, parseEther, Contract } from 'ethers';
-import { DEPLOYER_ABI } from './deployer-abi';
-import { STATEMANAGER_ABI } from './statemanager-abi';
-import { CONTRACTS, SupportedNetworks } from './config';
-import { SDKConfig, BuyTokenParams, SellTokenParams, TransactionOptions, LaunchTokenParams, TokenDeploymentConfig } from './types';
+
+import { SDKConfig, BuyTokenParams, SellTokenParams, TransactionOptions, LaunchTokenParams, TokenDeploymentConfig } from '../../types';
+import { CONTRACTS, SupportedNetworks } from '../../config';
+import { DEPLOYER_ABI } from '../../abis/deployer-abi';
 
 const ERC20_ABI = [
   'function approve(address spender, uint256 amount) returns (bool)'

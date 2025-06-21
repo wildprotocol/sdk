@@ -1,8 +1,8 @@
 import { ethers, formatEther, parseEther, BigNumberish } from 'ethers';
-import { DEPLOYER_ABI } from './deployer-abi';
-import { STATEMANAGER_ABI } from './statemanager-abi';
-import { BuyQuote, SDKConfig, SellQuote, AutoGraduationParams, PoolKey, TokenDeploymentConfig, TokenState, FeeSplit } from './types'; // Assuming you'll define these
-import { CONTRACTS, SupportedNetworks } from './config';
+import { BuyQuote, SDKConfig, SellQuote, AutoGraduationParams, PoolKey, TokenDeploymentConfig, TokenState, FeeSplit } from '../../types'; // Assuming you'll define these
+import { CONTRACTS, SupportedNetworks } from '../../config';
+import { DEPLOYER_ABI } from '../../abis/deployer-abi';
+import { STATEMANAGER_ABI } from '../../abis/statemanager-abi';
 
 export class DeployerReader {
   protected contract: ethers.Contract;
@@ -62,7 +62,7 @@ export class DeployerReader {
       baseTokensInBondingCurve,
       lastPrice,
       totalFees,
-      graduated,
+      isGraduated,
       poolAddress
     ] = result;
     return {
@@ -70,7 +70,7 @@ export class DeployerReader {
       baseTokensInBondingCurve: BigInt(baseTokensInBondingCurve),
       lastPrice: BigInt(lastPrice),
       totalFees: BigInt(totalFees),
-      graduated,
+      isGraduated,
       poolAddress: poolAddress as `0x${string}`, // Ensure this is a valid address format
     };
   }
@@ -101,9 +101,10 @@ export class DeployerReader {
   async getPoolKey(token: string): Promise<PoolKey> {
     const result = await this.stateManagerContract.getPoolKey(token);
     return {
-      token0: result[0],
-      token1: result[1],
-      fee: Number(result[2]),
+      token0: result.currency0 as `0x${string}`, // Ensure this is a valid address format
+      token1: result.currency1 as `0x${string}`, // Ensure this is a valid address format
+      tickSpacing: Number(result.tickSpacing),
+      fee: Number(result.fee),
     };
   }
 
