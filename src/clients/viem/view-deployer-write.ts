@@ -51,11 +51,7 @@ export class ViemDeployerWriter {
     }
   }
 
-  private async waitForTransaction(txHash: `0x${string}`) {
-    const receipt = await waitForTransactionReceipt(this.publicClient, { hash: txHash });
-    return receipt;
-  }
-
+ 
   private buildTxOptions(options?: TransactionOptions) {
     const txOptions: any = {};
     if (options?.gasLimit) txOptions.gasLimit = options.gasLimit;
@@ -206,6 +202,16 @@ export class ViemDeployerWriter {
     });
 
     return tx;
+  }
+
+  async waitForTransaction(txHash: `0x${string}`) {
+    try {
+      const receipt = await waitForTransactionReceipt(this.publicClient, { hash: txHash });
+      return receipt;
+    } catch (error) {
+      console.error('Error waiting for transaction receipt:', error);
+      throw error;
+    }
   }
 
   private buildTokenDeploymentConfig(params: LaunchTokenParams): TokenDeploymentConfig {

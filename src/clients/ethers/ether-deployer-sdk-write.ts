@@ -193,6 +193,19 @@ async withdrawDust(options?: TransactionOptions): Promise<ContractTransactionRes
   return await this.contract.withdrawDust(txOptions);
 }
 
+async waitForTransaction(txHash: string): Promise<ethers.TransactionReceipt | null> {
+  if (!this.provider) throw new Error('Provider is not initialized');
+
+  try {
+    const receipt = await this.provider.waitForTransaction(txHash);
+    return receipt;
+  } catch (error) {
+    console.error('Error waiting for transaction receipt:', error);
+    throw error;
+  }
+}
+
+
   private buildTokenDeploymentConfig(params: LaunchTokenParams): TokenDeploymentConfig {
     const totalSupply = (
       BigInt(params.teamSupply) +
