@@ -1,5 +1,8 @@
 import { Wallet } from 'ethers';
 import { DeployerSDK } from '../src';
+import { privateKeyToAccount } from 'viem/accounts';
+import { createWalletClient, http } from 'viem';
+import { baseSepolia } from 'viem/chains';
 
 // read private key from .env
 const privateKey = process.env.PRIVATE_KEY;
@@ -17,42 +20,52 @@ const amountETHToUseForBuy1 = '0.0000001';
 const amountTokensToSell = '770'; // calculated depending in prices below
 const amountETHToUseForBuy2 = '0.000001'; // should be enough to graduate
 const protocolFeeRecipient = '0x1234567890123456789012345678901234567890';
-
+const testTokenAddress = "0x03DDCF4ab7bF145bCf221bE21c52c6b10C2A6BC5";
 
 const randomNumber = String(Math.floor(Math.random() * 10000));
 
+const account = privateKeyToAccount(privateKey as `0x${string}`);
+
+const walletClient = createWalletClient({
+  account,
+  chain: baseSepolia,
+  transport: http('https://sepolia.base.org')
+});
+
 async function main() {
   // Initialize the SDK
-  const sdk = new DeployerSDK({
-    contractAddress: deployerContractAddress, // Replace with actual contract address
-    rpcUrl: 'https://mainnet.base.org',
-    privateKey: privateKey // Or use signer instead
+  const sdk = await DeployerSDK.getDeployer({
+    client: "viem",
+    network: "base-sepolia",
+    rpcUrl: "https://sepolia.base.org",
+    walletClient: walletClient, // viem wallet client
   });
 
   try {
 
     // Check if base token is whitelisted
     // base token must be whitelisted to launch a token with it
-    const isWhitelisted = await sdk.isBaseTokenWhitelisted('0x0000000000000000000000000000000000000000');
+    const isWhitelisted = await sdk.read.isBaseTokenWhitelisted('0x0000000000000000000000000000000000000000');
     console.log('ETH is whitelisted:', isWhitelisted);
 
 
   // Launch a new token
     console.log('Launching new token...');
-    const launchTx = await sdk.launchToken({
+    const launchTx = await sdk.write.launchToken({
       name: 'TT_' + randomNumber,
       symbol: 'TTK_' + randomNumber,
       image: 'https://example.com/image.png',
-      creator: publicKey,
+      creator: publicKey as `0x${string}`, // Ensure this is a valid address format
       baseToken: '0x0000000000000000000000000000000000000000', // ETH
       teamSupply: '1000000000000000000000000', // 1M tokens (18 decimals)
+      totalSupply: '10000000000000000000000000', // 10M tokens
       bondingCurveSupply: '5000000000000000000000', // 5K tokens
       liquidityPoolSupply: '995000000000000000000000', // 995K tokens
       bondingCurveBuyFee: '250', // 2.5% (250 basis points)
       bondingCurveSellFee: '250', // 2.5%
       bondingCurveFeeSplits: [
-        { recipient: publicKey, bps: '9500' },
-        { recipient: protocolFeeRecipient, bps: '500' } // 5% to protocol fee recipient mandatory
+        { recipient: publicKey as `0x${string}`, bps: BigInt(9500) },
+        { recipient: protocolFeeRecipient as `0x${string}`, bps: BigInt(500) } // 5% to protocol fee recipient mandatory
       ],
       bondingCurveParams: {
         prices: ['110000000', '120000000', '130000000', '140000000', '150000000', '160000000', '170000000', '180000000', '190000000', '200000000'], // Price points
@@ -64,40 +77,30 @@ async function main() {
       graduationFeeSplits: [],
       poolFees: 3000, // 0.3%
       poolFeeSplits: [
-        { recipient: publicKey, bps: '9500' },
-        { recipient: protocolFeeRecipient, bps: '500' } // 5% to protocol fee recipient mandatory
+        { recipient: publicKey as `0x${string}`, bps: BigInt(9500) },
+        { recipient: protocolFeeRecipient as `0x${string}`, bps: BigInt(500) } // 5% to protocol fee recipient mandatory
       ],
       surgeFeeDuration: '900', // 15 minutes
-      maxSurgeFeeBps: '1000' // 10%
+      maxSurgeFeeBps: '1000', // 10%
     });
 
     console.log('Launch transaction hash:', launchTx.hash);
-    const launchReceipt = await sdk.waitForTransaction(launchTx);
-    console.log('Launch transaction confirmed:', launchReceipt?.hash);
-    
-    // Get the launched token address
-    const testTokenAddress = sdk.getTokenAddressFromReceipt(launchReceipt);
-    console.log('Launched token address:', testTokenAddress);
-
-    if (!testTokenAddress) {
-      throw new Error('Failed to get token address from launch receipt');
-    }
+    // Wait for the transaction to be confirmed, this might take a while, once complete will return the token address
 
     // Step 1: Get buy quote
     console.log('Getting buy quote...');
-    const buyQuote = await sdk.getBuyQuote(
+    const buyQuote = await sdk.read.getBuyQuote(
       testTokenAddress, // Token address
       amountETHToUseForBuy1 // Amount in ETH
     );
     console.log('Buy Quote:', {
-      amountOut: DeployerSDK.formatEther(buyQuote.amountOut),
-      amountInUsed: DeployerSDK.formatEther(buyQuote.amountInUsed),
-      fee: DeployerSDK.formatEther(buyQuote.fee),
+      amountOut: buyQuote.amountOut, // amount of tokens to receive, this is in wei
+      amountInUsed: buyQuote.amountInUsed, // amount of ETH used, this is in wei
     });
 
     // Step 2: Buy tokens
     console.log('Buying tokens...');
-    const buyTx = await sdk.buyToken({
+    const buyTx = await sdk.write.buyToken({
       token: testTokenAddress,
       amountIn: amountETHToUseForBuy1, // 1 ETH
       amountOutMin: '0', // Minimum tokens to receive (set proper slippage)
@@ -106,67 +109,48 @@ async function main() {
     });
     
     console.log('Buy transaction hash:', buyTx.hash);
-    const buyReceipt = await sdk.waitForTransaction(buyTx);
-    console.log('Buy transaction confirmed:', buyReceipt?.hash);
-
-    
-
+  
     // Step 3: Get sell quote
     console.log('Getting sell quote...');
-    const sellQuote = await sdk.getSellQuote(
+    const sellQuote = await sdk.read.getSellQuote(
       testTokenAddress, // Token address
       amountTokensToSell // Amount of tokens to sell
     );
     console.log('Sell Quote:', {
-      amountOut: DeployerSDK.formatEther(sellQuote.amountOut),
-      fee: DeployerSDK.formatEther(sellQuote.fee)
+      amountOut: sellQuote.amountOut, // amount of ETH to receive, this is in wei
+      amountInUsed: sellQuote.amountInUsed, // amount of tokens used, this is in wei
     });
 
     // Step 4: Sell tokens (requires token approval first)
     console.log('Approving tokens for selling...');
     console.log('Approving', amountTokensToSell, 'tokens for selling');
-    const approveTx = await sdk.approveToken(testTokenAddress, amountTokensToSell);
-    console.log('Approve transaction hash:', approveTx.hash);
-    const approveReceipt = await sdk.waitForTransaction(approveTx);
-    console.log('Approve transaction confirmed:', approveReceipt?.hash);
-
-    console.log('Selling tokens...');
-    const sellTx = await sdk.sellToken({
+    const sellTx = await sdk.write.approveAndSell({
       token: testTokenAddress,
-      amountIn: amountTokensToSell,
+      amountIn: amountTokensToSell, // Amount of tokens to sell
       amountOutMin: '0', // Minimum ETH to receive (set proper slippage)
-      to: publicKey // Recipient address
+      to: publicKey // Address that will spend the tokens (Deployer contract)
     });
-    
+    console.log('Selling tokens...');
     console.log('Sell transaction hash:', sellTx.hash);
-    const sellReceipt = await sdk.waitForTransaction(sellTx);
-    console.log('Sell transaction confirmed:', sellReceipt?.hash);
-
-    
+  
     // Step 5: Claim fees (if you're a fee recipient)
     console.log('Claiming fees...');
-    const claimTx = await sdk.claimFee(testTokenAddress);
+    const claimTx = await sdk.write.claimFee(testTokenAddress);
     console.log('Claim transaction hash:', claimTx.hash);
-    const claimReceipt = await sdk.waitForTransaction(claimTx);
-    console.log('Claim transaction confirmed:', claimReceipt?.hash);
-
-
+ 
     // Step 6: Buy more tokens
     console.log('Getting buy quote for more tokens...');
-    const buyQuote2 = await sdk.getBuyQuote(
+    const buyQuote2 = await sdk.read.getBuyQuote(
       testTokenAddress, // Token address
       amountETHToUseForBuy2 // Amount in ETH
     );
     console.log('Buy Quote:', {
-      amountOut: DeployerSDK.formatEther(buyQuote2.amountOut),
-      amountInUsed: DeployerSDK.formatEther(buyQuote2.amountInUsed),
-      fee: DeployerSDK.formatEther(buyQuote2.fee)
+      amountOut: buyQuote2.amountOut,
+      amountInUsed: buyQuote2.amountInUsed,
     });
 
-
-
     console.log('Buying more tokens...');
-    const buyTx2 = await sdk.buyToken({
+    const buyTx2 = await sdk.write.buyToken({
       token: testTokenAddress,
       amountIn: amountETHToUseForBuy2,
       amountOutMin: '0',
@@ -174,16 +158,11 @@ async function main() {
       value: amountETHToUseForBuy2
     });
     console.log('Buy transaction hash:', buyTx2.hash); // excess eth is returned
-    const buyReceipt2 = await sdk.waitForTransaction(buyTx2);
-    console.log('Buy transaction confirmed:', buyReceipt2?.hash);
-
+  
     // Graduate token
     console.log('Graduating token...');
-    const graduateTx = await sdk.graduateToken(testTokenAddress, true); // Allow pre-graduation
+    const graduateTx = await sdk.write.graduateToken(testTokenAddress, true); // Allow pre-graduation
     console.log('Graduate transaction hash:', graduateTx.hash);
-    const graduateReceipt = await sdk.waitForTransaction(graduateTx);
-    console.log('Graduate transaction confirmed:', graduateReceipt?.hash);
-
   } catch (error) {
     console.error('Error:', error);
   }
