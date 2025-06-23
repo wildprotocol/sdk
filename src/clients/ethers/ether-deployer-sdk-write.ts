@@ -1,8 +1,9 @@
 import { ethers, ContractTransactionResponse, parseEther, Contract } from 'ethers';
 
-import { SDKConfig, BuyTokenParams, SellTokenParams, TransactionOptions, LaunchTokenParams, TokenDeploymentConfig } from '../../types';
+import { BuyTokenParams, SellTokenParams, TransactionOptions, LaunchTokenParams, TokenDeploymentConfig, Address } from '../../types';
 import { CONTRACTS, SupportedNetworks } from '../../config';
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
+import type { EthersSDKConfig } from './types';
 
 const ERC20_ABI = [
   'function approve(address spender, uint256 amount) returns (bool)'
@@ -13,7 +14,7 @@ export class DeployerWriter {
   private provider: ethers.Provider;
   private signer?: ethers.Signer;
 
-  constructor(config: SDKConfig & { network: SupportedNetworks }) {
+  constructor(config: EthersSDKConfig & { network: SupportedNetworks }) {
     if (!config.rpcUrl) throw new Error('RPC URL is required');
 
     const networkContracts = CONTRACTS[config.network];
@@ -206,26 +207,26 @@ async withdrawDust(options?: TransactionOptions): Promise<ContractTransactionRes
       symbol: params.symbol,
       image: params.image,
       appIdentifier: '',
-      teamSupply: params.teamSupply,
-      vestingStartTime: params.vestingStartTime || '0',
-      vestingDuration: params.vestingDuration || '0',
-      vestingWallet: params.vestingWallet || ethers.ZeroAddress,
-      bondingCurveSupply: params.bondingCurveSupply,
-      liquidityPoolSupply: params.liquidityPoolSupply,
-      totalSupply: totalSupply,
-      bondingCurveBuyFee: params.bondingCurveBuyFee,
-      bondingCurveSellFee: params.bondingCurveSellFee,
+      teamSupply: BigInt(params.teamSupply),
+      vestingStartTime: params.vestingStartTime ? BigInt(params.vestingStartTime) : BigInt(0),
+      vestingDuration: params.vestingDuration ? BigInt(params.vestingDuration) : BigInt(0),
+      vestingWallet: params.vestingWallet ? params.vestingWallet as Address : ethers.ZeroAddress as Address,
+      bondingCurveSupply: BigInt(params.bondingCurveSupply),
+      liquidityPoolSupply: BigInt(params.liquidityPoolSupply),
+      totalSupply: BigInt(totalSupply),
+      bondingCurveBuyFee: BigInt(params.bondingCurveBuyFee),
+      bondingCurveSellFee: BigInt(params.bondingCurveSellFee),
       bondingCurveFeeSplits: params.bondingCurveFeeSplits.map(split => ({
         recipient: split.recipient,
         bps: split.bps
       })),
       bondingCurveParams: {
-        prices: params.bondingCurveParams.prices,
-        numSteps: params.bondingCurveParams.numSteps,
-        stepSize: params.bondingCurveParams.stepSize
+        prices: params.bondingCurveParams.prices.map(price => BigInt(price)),
+        numSteps: BigInt(params.bondingCurveParams.numSteps),
+        stepSize: BigInt(params.bondingCurveParams.stepSize)
       },
       allowForcedGraduation: params.allowForcedGraduation,
-      graduationFeeBps: params.graduationFeeBps,
+      graduationFeeBps: BigInt(params.graduationFeeBps),
       graduationFeeSplits: params.graduationFeeSplits.map(split => ({
         recipient: split.recipient,
         bps: split.bps
@@ -235,9 +236,9 @@ async withdrawDust(options?: TransactionOptions): Promise<ContractTransactionRes
         recipient: split.recipient,
         bps: split.bps
       })),
-      surgeFeeStartingTime: Math.floor(Date.now() / 1000).toString(),
-      surgeFeeDuration: params.surgeFeeDuration,
-      maxSurgeFeeBps: params.maxSurgeFeeBps
+      surgeFeeStartingTime: BigInt(Math.floor(Date.now() / 1000)),
+      surgeFeeDuration: BigInt(params.surgeFeeDuration),
+      maxSurgeFeeBps: BigInt(params.maxSurgeFeeBps)
     };
   }
 }

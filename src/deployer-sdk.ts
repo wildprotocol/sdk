@@ -1,23 +1,15 @@
-import { SDKConfig } from './types';
-import { SupportedNetworks } from './config';
-import { DeployerReader as EthersReader } from './clients/ethers/ether-deployer-sdk-read';
-import { DeployerWriter as EthersWriter } from './clients/ethers/ether-deployer-sdk-write';
-import { ViemDeployerReader } from './clients/viem/viem-deployer-read';
-import { ViemDeployerWriter } from './clients/viem/view-deployer-write';
+import type { SDKConfig } from './types';
+import type { SupportedNetworks } from './config';
 
 export class DeployerSDK {
-  public read: EthersReader | ViemDeployerReader;
-  public write: EthersWriter | ViemDeployerWriter;
-
-  constructor(config: SDKConfig & { network: SupportedNetworks }) {
+  async getDeployer(config: SDKConfig & { network: SupportedNetworks }) {
     if (config.client === 'ethers') {
-      this.read = new EthersReader(config);
-      this.write = new EthersWriter(config);
+      const { EthersDeployer } = await import('./clients/ethers');
+      return new EthersDeployer(config);
     } else if (config.client === 'viem') {
-      this.read = new ViemDeployerReader(config);
-      this.write = new ViemDeployerWriter(config);
-    } else {
-      throw new Error('Unsupported client type. Use "ethers" or "viem".');
+      const { ViemDeployer } = await import('./clients/viem');
+      return new ViemDeployer(config);
     }
+    throw new Error('Unsupported client type. Use "ethers" or "viem".');
   }
 }

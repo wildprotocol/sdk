@@ -1,75 +1,71 @@
-import { BigNumberish } from 'ethers';
-import { WalletClient } from 'viem';
+import type { EthersSDKConfig } from './clients/ethers/types';
+import type { ViemSDKConfig } from './clients/viem/types';
+
+export type Address = `0x${string}`;
 
 export interface FeeSplit {
-  recipient: string;
-  bps: BigNumberish;
+  recipient: Address;
+  bps: bigint;
 }
 
 export interface PriceCurve {
-  prices: BigNumberish[];
-  numSteps: BigNumberish;
-  stepSize: BigNumberish;
+  prices: bigint[];
+  numSteps: bigint;
+  stepSize: bigint;
 }
 
 export interface TokenDeploymentConfig {
-  creator: `0x${string}` | string; // address of the creator
-  baseToken: `0x${string}` | string; // address of the creator`;
+  creator: Address; // address of the creator
+  baseToken: Address; // address of the creator`;
   name: string;
   symbol: string;
   image: string;
   appIdentifier: string;
-  teamSupply: BigNumberish;
-  vestingStartTime: BigNumberish;
-  vestingDuration: BigNumberish;
-  vestingWallet: string;
-  bondingCurveSupply: BigNumberish;
-  liquidityPoolSupply: BigNumberish;
-  totalSupply: BigNumberish;
-  bondingCurveBuyFee: BigNumberish;
-  bondingCurveSellFee: BigNumberish;
+  teamSupply: bigint;
+  vestingStartTime: bigint;
+  vestingDuration: bigint;
+  vestingWallet: Address;
+  bondingCurveSupply: bigint;
+  liquidityPoolSupply: bigint;
+  totalSupply: bigint;
+  bondingCurveBuyFee: bigint;
+  bondingCurveSellFee: bigint;
   bondingCurveFeeSplits: FeeSplit[];
   bondingCurveParams: PriceCurve;
   allowForcedGraduation: boolean;
-  graduationFeeBps: BigNumberish;
+  graduationFeeBps: bigint;
   graduationFeeSplits: FeeSplit[];
-  poolFees: number | BigNumberish; // in basis points
+  poolFees: number; // in basis points
   poolFeeSplits: FeeSplit[];
-  surgeFeeStartingTime: BigNumberish;
-  surgeFeeDuration: BigNumberish;
-  maxSurgeFeeBps: BigNumberish;
+  surgeFeeStartingTime: bigint;
+  surgeFeeDuration: bigint;
+  maxSurgeFeeBps: bigint;
 }
 
 export interface BuyQuote {
-  amountOut: BigNumberish;
-  amountInUsed: BigNumberish;
+  amountOut: bigint;
+  amountInUsed: bigint;
 }
 
 export interface SellQuote {
-  amountOut: BigNumberish;
-  amountInUsed: BigNumberish;
+  amountOut: bigint;
+  amountInUsed: bigint;
 }
 
-export interface SDKConfig {
-  rpcUrl: string;
-  signer?: any;         // For ethers
-  walletClient?: WalletClient;   // For viem
-  privateKey?: string;
-  client: 'ethers' | 'viem';
-}
+export type SDKConfig = EthersSDKConfig | ViemSDKConfig;
 
 export interface TransactionOptions {
-  gasLimit?: BigNumberish;
-  gasPrice?: BigNumberish;
-  value?: BigNumberish;
+  gasLimit?: bigint;
+  gasPrice?: bigint;
+  value?: bigint;
 }
 
 export interface LaunchTokenParams {
   name: string;
   symbol: string;
   image: string;
-  creator: string;
-  baseToken: string;
+  creator: Address;
+  baseToken: Address;
   totalSupply: string;
   teamSupply: string;
   bondingCurveSupply: string;
@@ -91,7 +87,7 @@ export interface LaunchTokenParams {
   maxSurgeFeeBps: string;
   vestingStartTime?: string;
   vestingDuration?: string;
-  vestingWallet?: string;
+  vestingWallet?: Address;
 }
 
 export interface BuyTokenParams {
@@ -130,5 +126,5 @@ export type TokenState = {
   lastPrice?: bigint;
   totalFees?: bigint;
   isGraduated: boolean;
-  poolAddress: `0x${string}`; // address of the pool
+  poolAddress: Address; // address of the pool
 };
