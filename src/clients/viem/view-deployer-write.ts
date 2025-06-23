@@ -3,7 +3,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { createPublicClient, createWalletClient, http } from 'viem';
 
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
-import { CONTRACTS, SupportedNetworks } from '../../config';
+import { CONTRACTS } from '../../config';
 import {
   SDKConfig,
   BuyTokenParams,

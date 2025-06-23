@@ -1,7 +1,7 @@
 import { ethers, ContractTransactionResponse, parseEther, Contract } from 'ethers';
 
 import { BuyTokenParams, SellTokenParams, TransactionOptions, LaunchTokenParams, TokenDeploymentConfig, Address } from '../../types';
-import { CONTRACTS, SupportedNetworks } from '../../config';
+import { CONTRACTS } from '../../config';
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
 import type { EthersSDKConfig } from './types';
 
@@ -14,7 +14,7 @@ export class DeployerWriter {
   private provider: ethers.Provider;
   private signer?: ethers.Signer;
 
-  constructor(config: EthersSDKConfig & { network: SupportedNetworks }) {
+  constructor(config: EthersSDKConfig) {
     if (!config.rpcUrl) throw new Error('RPC URL is required');
 
     const networkContracts = CONTRACTS[config.network];

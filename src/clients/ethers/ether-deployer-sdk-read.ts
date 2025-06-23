@@ -1,6 +1,6 @@
 import { ethers, formatEther, parseEther, BigNumberish } from 'ethers';
 import { BuyQuote, SellQuote, AutoGraduationParams, PoolKey, TokenDeploymentConfig, TokenState, FeeSplit } from '../../types'; // Assuming you'll define these
-import { CONTRACTS, SupportedNetworks } from '../../config';
+import { CONTRACTS } from '../../config';
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
 import { STATEMANAGER_ABI } from '../../abis/statemanager-abi';
 import type { EthersSDKConfig } from './types';
@@ -10,7 +10,7 @@ export class DeployerReader {
   protected stateManagerContract: ethers.Contract;
   protected provider: ethers.Provider;
 
-  constructor(config: EthersSDKConfig & { network: SupportedNetworks }) {
+  constructor(config: EthersSDKConfig) {
     if (!config.rpcUrl) throw new Error('RPC URL is required');
 
     const networkContracts = CONTRACTS[config.network];

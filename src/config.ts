@@ -1,4 +1,4 @@
-export type SupportedNetworks = 'base-sepolia' | 'base-mainnet';
+export type SupportedNetworks = keyof typeof CONTRACTS;
 
 export const CONTRACTS = {
   'base-sepolia': {

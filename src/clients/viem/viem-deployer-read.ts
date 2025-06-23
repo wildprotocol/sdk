@@ -2,7 +2,7 @@ import { createPublicClient, http, parseEther, formatEther, BaseError, ContractF
 
 import { BuyQuote, SellQuote, AutoGraduationParams, PoolKey, TokenDeploymentConfig, TokenState, FeeSplit, Address } from '../../types';
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
-import { CONTRACTS, SupportedNetworks } from '../../config';
+import { CONTRACTS } from '../../config';
 import { STATEMANAGER_ABI } from '../../abis/statemanager-abi';
 import type { ViemSDKConfig } from './types';
 

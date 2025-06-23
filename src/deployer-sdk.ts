@@ -1,8 +1,7 @@
 import type { SDKConfig } from './types';
-import type { SupportedNetworks } from './config';
 
 export class DeployerSDK {
-  async getDeployer(config: SDKConfig & { network: SupportedNetworks }) {
+  async getDeployer(config: SDKConfig) {
     if (config.client === 'ethers') {
       const { EthersDeployer } = await import('./clients/ethers');
       return new EthersDeployer(config);
