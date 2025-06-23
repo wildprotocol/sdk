@@ -3,6 +3,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { createWalletClient, http } from "viem";
 import { baseSepolia } from "viem/chains";
 import { useDeployerSDK } from "../src";
+import { waitForTransactionReceipt } from "viem/actions";
 
 const deployerContractAddress = "0x8e095febb45a3c852e81599fa9e155be83b67e2c";
 const amountETHToUseForBuy1 = "0.0000001";
@@ -112,7 +113,11 @@ export default function TokenDeployer() {
         to: publicKey,
         value: amountETHToUseForBuy1,
       });
-      console.log("Buy transaction hash:", buyTx.hash);
+      console.log("Buy transaction hash:", buyTx.transactionHash);
+      const receipt = await waitForTransactionReceipt(walletClient, {
+        hash: buyTx.transactionHash,
+      });
+      console.log("Buy transaction receipt:", receipt);
 
       setStatus("Getting sell quote...");
       const sellQuote = await sdk.read.getSellQuote(
@@ -148,7 +153,7 @@ export default function TokenDeployer() {
         to: publicKey,
         value: amountETHToUseForBuy2,
       });
-      console.log("Buy transaction hash:", buyTx2.hash);
+      console.log("Buy transaction hash:", buyTx2.transactionHash);
 
       setStatus("Graduating token...");
       const graduateTx = await sdk.write.graduateToken(testTokenAddress, true);

@@ -14,6 +14,7 @@ import {
 } from '../../types';
 
 import type { ViemSDKConfig } from './types';
+import { waitForTransactionReceipt } from 'viem/actions';
 
 export class ViemDeployerWriter {
   protected config: ViemSDKConfig;
@@ -50,6 +51,11 @@ export class ViemDeployerWriter {
     }
   }
 
+  private async waitForTransaction(txHash: `0x${string}`) {
+    const receipt = await waitForTransactionReceipt(this.publicClient, { hash: txHash });
+    return receipt;
+  }
+
   private buildTxOptions(options?: TransactionOptions) {
     const txOptions: any = {};
     if (options?.gasLimit) txOptions.gasLimit = options.gasLimit;
@@ -71,8 +77,7 @@ export class ViemDeployerWriter {
       value: parseEther(params.value || params.amountIn),
       ...this.buildTxOptions(options),
     });
-
-    return tx;
+    return tx
   }
 
   async sellToken(params: SellTokenParams, options?: TransactionOptions) {

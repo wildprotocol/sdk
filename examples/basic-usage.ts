@@ -3,6 +3,7 @@ import { DeployerSDK } from '../src';
 import { privateKeyToAccount } from 'viem/accounts';
 import { createWalletClient, http } from 'viem';
 import { baseSepolia } from 'viem/chains';
+import { waitForTransaction, waitForTransactionReceipt } from 'viem/actions';
 
 // read private key from .env
 const privateKey = process.env.PRIVATE_KEY;
@@ -157,7 +158,9 @@ async function main() {
       to: publicKey,
       value: amountETHToUseForBuy2
     });
-    console.log('Buy transaction hash:', buyTx2.hash); // excess eth is returned
+    console.log('Buy transaction hash:', buyTx2); // excess eth is returned
+    const receipt = await waitForTransactionReceipt(walletClient, { hash: buyTx2 });
+    console.log('Transaction receipt:', receipt); // this will return the token receipt
   
     // Graduate token
     console.log('Graduating token...');
