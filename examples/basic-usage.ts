@@ -3,7 +3,7 @@ import { DeployerSDK } from '../src';
 import { privateKeyToAccount } from 'viem/accounts';
 import { createWalletClient, http } from 'viem';
 import { baseSepolia } from 'viem/chains';
-import { waitForTransaction, waitForTransactionReceipt } from 'viem/actions';
+import { waitForTransactionReceipt } from 'viem/actions';
 
 // read private key from .env
 const privateKey = process.env.PRIVATE_KEY;

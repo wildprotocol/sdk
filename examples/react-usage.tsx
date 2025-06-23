@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { privateKeyToAccount } from "viem/accounts";
 import { createWalletClient, http } from "viem";
 import { baseSepolia } from "viem/chains";

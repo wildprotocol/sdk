@@ -4,7 +4,6 @@ import { SDKConfig } from '../types';
 import { EthersDeployer } from '../clients/ethers';
 import { ViemDeployer } from '../clients/viem';
 
-// Infer the SDK type based on the client
 type DeployerType<T extends SDKConfig> = T['client'] extends 'ethers' ? EthersDeployer : ViemDeployer;
 
 export function useDeployerSDK<T extends SDKConfig>(config: T) {
@@ -13,7 +12,6 @@ export function useDeployerSDK<T extends SDKConfig>(config: T) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // Runtime guard for Viem walletClient (optional, depending on your needs)
     if (config.client === 'viem' && !config.walletClient) {
       console.warn('walletClient is required for viem client');
       return;
