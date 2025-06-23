@@ -50,7 +50,7 @@ export class ViemDeployerWriter {
 
   private buildTxOptions(options?: TransactionOptions) {
     const txOptions: any = {};
-    if (options?.gas) txOptions.gas = options.gas;
+    if (options?.gasLimit) txOptions.gasLimit = options.gasLimit;
     if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
     return txOptions;
   }
