@@ -6,5 +6,4 @@ export interface EthersSDKConfig {
     signer?: Signer;
     privateKey?: string;
     network: SupportedNetworks;
-    client: 'ethers';
 }

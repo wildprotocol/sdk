@@ -6,5 +6,4 @@ export interface ViemSDKConfig {
     walletClient?: WalletClient;
     privateKey?: string;
     network: SupportedNetworks;
-    client: 'viem';  
 }

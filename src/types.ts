@@ -52,7 +52,7 @@ export interface SellQuote {
   amountInUsed: bigint;
 }
 
-export type SDKConfig = EthersSDKConfig | ViemSDKConfig;
+export type SDKConfig = EthersSDKConfig & { client: 'ethers' } | ViemSDKConfig & { client: 'viem' };
 
 export interface TransactionOptions {
   gasLimit?: bigint;
