@@ -1,5 +1,9 @@
 // Main SDK export
 export { DeployerSDK } from './deployer-sdk';
+
+// React Hook export
+export { useDeployerSDK } from './react/useDeployerSDK';
+
 // Type exports
 export * from './types';
 
