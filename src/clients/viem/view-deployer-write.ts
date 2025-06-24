@@ -13,8 +13,9 @@ import {
 } from '../../types';
 
 import { waitForTransactionReceipt } from 'viem/actions';
-import { adjustFeeSplits, validateLaunchTokenParams } from '../../utils/validators';
+import { validateFeeSplitArray, validateLaunchTokenBondingCurveParams } from '../../utils/validators';
 import type { ViemSDKConfig } from './types';
+import { extractEventArgument } from '../../utils/helper';
 
 export class ViemDeployerWriter {
   protected config: ViemSDKConfig;
@@ -152,35 +153,12 @@ export class ViemDeployerWriter {
    * Example: 500 = 5%
  */
   async launchToken(params: LaunchTokenParams, options?: TransactionOptions) {
-    const protocolFeeRecipient = "0x1234567890123456789012345678901234567890" as Address;
-    const { protocolFeeBps, ...restParams } = params;
-  
-    if (!protocolFeeBps || protocolFeeBps <= 0 || protocolFeeBps >= 10000) {
-      throw new Error("Invalid protocol fee. Must be between 1 and 9999 bps.");
-    }
-  
-    const protocolFeeBigInt = BigInt(protocolFeeBps);
-  
-    const updatedParams: LaunchTokenParams = {
-      ...restParams,
-      protocolFeeBps,
-      bondingCurveFeeSplits: [
-        { recipient: protocolFeeRecipient, bps: protocolFeeBigInt },
-        ...adjustFeeSplits(restParams.bondingCurveFeeSplits, protocolFeeBigInt)
-      ],
-      graduationFeeSplits: [
-        { recipient: protocolFeeRecipient, bps: protocolFeeBigInt },
-        ...adjustFeeSplits(restParams.graduationFeeSplits, protocolFeeBigInt)
-      ],
-      poolFeeSplits: [
-        { recipient: protocolFeeRecipient, bps: protocolFeeBigInt },
-        ...adjustFeeSplits(restParams.poolFeeSplits, protocolFeeBigInt)
-      ],
-    };
-  
-    validateLaunchTokenParams(updatedParams);
-  
-    const config = this.buildTokenDeploymentConfig(updatedParams);
+    validateLaunchTokenBondingCurveParams(params);
+    validateFeeSplitArray(params.bondingCurveFeeSplits, "bondingCurveFeeSplits");
+    validateFeeSplitArray(params.poolFeeSplits, "poolFeeSplits");
+    validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
+    
+    const config = this.buildTokenDeploymentConfig(params);
   
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
@@ -189,10 +167,19 @@ export class ViemDeployerWriter {
       args: [config],
       ...this.buildTxOptions(options),
     });
+
+    const receipt = await waitForTransactionReceipt(this.walletClient,{ hash: tx });
+
+    const createdTokenAddress = extractEventArgument({
+      logs: receipt.logs,
+      eventName: 'TokenLaunched',
+      argumentName: 'token'
+    });
   
-    return tx;
+    if (!createdTokenAddress) throw new Error('TokenLaunched event not found');
+  
+    return { tx, createdTokenAddress };
   }
-  
   
   
   async graduateToken(token: string, allowPreGraduation: boolean = false, options?: TransactionOptions) {
