@@ -97,7 +97,7 @@ export default function TokenDeployer() {
         maxSurgeFeeBps: "1000",
         protocolFeeBps: 500,
       });
-      console.log("Launch transaction hash:", launchTx.hash);
+      console.log("Launch Token:", launchTx);
 
       setStatus("Getting buy quote...");
       const buyQuote = await sdk.read.getBuyQuote(
