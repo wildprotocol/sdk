@@ -1,20 +1,19 @@
-import { parseEther } from 'viem';
+import { createPublicClient, createWalletClient, http, parseEther } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { createPublicClient, createWalletClient, http } from 'viem';
 
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
 import { CONTRACTS } from '../../config';
 import {
-  SDKConfig,
   BuyTokenParams,
-  SellTokenParams,
-  TransactionOptions,
   LaunchTokenParams,
+  SellTokenParams,
   TokenDeploymentConfig,
+  TransactionOptions
 } from '../../types';
 
-import type { ViemSDKConfig } from './types';
 import { waitForTransactionReceipt } from 'viem/actions';
+import { validateLaunchTokenParams } from '../../utils/validators';
+import type { ViemSDKConfig } from './types';
 
 export class ViemDeployerWriter {
   protected config: ViemSDKConfig;
@@ -143,8 +142,10 @@ export class ViemDeployerWriter {
   }
 
   async launchToken(params: LaunchTokenParams, options?: TransactionOptions) {
+    validateLaunchTokenParams(params);
+  
     const config = this.buildTokenDeploymentConfig(params);
-
+  
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
@@ -155,7 +156,7 @@ export class ViemDeployerWriter {
 
     return tx;
   }
-
+  
   async graduateToken(token: string, allowPreGraduation: boolean = false, options?: TransactionOptions) {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,

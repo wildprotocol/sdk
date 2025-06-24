@@ -4,6 +4,7 @@ import { BuyTokenParams, SellTokenParams, TransactionOptions, LaunchTokenParams,
 import { CONTRACTS } from '../../config';
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
 import type { EthersSDKConfig } from './types';
+import { validateLaunchTokenParams } from '../../utils/validators';
 
 const ERC20_ABI = [
   'function approve(address spender, uint256 amount) returns (bool)'
@@ -141,6 +142,7 @@ async claimFee(token: string, options?: TransactionOptions): Promise<ContractTra
  */
 async launchToken(params: LaunchTokenParams, options?: TransactionOptions): Promise<ContractTransactionResponse> {
   if (!this.signer) throw new Error('Signer is required for launching tokens');
+  validateLaunchTokenParams(params);
 
   const config = this.buildTokenDeploymentConfig(params);
 
