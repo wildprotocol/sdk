@@ -1,19 +1,21 @@
-import { parseEther } from 'viem';
+import { createPublicClient, createWalletClient, http, parseEther } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { createPublicClient, createWalletClient, http } from 'viem';
 
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
 import { CONTRACTS } from '../../config';
 import {
-  SDKConfig,
+  Address,
   BuyTokenParams,
-  SellTokenParams,
-  TransactionOptions,
   LaunchTokenParams,
+  SellTokenParams,
   TokenDeploymentConfig,
+  TransactionOptions
 } from '../../types';
 
+import { waitForTransactionReceipt } from 'viem/actions';
+import { validateFeeSplitArray, validateLaunchTokenBondingCurveParams } from '../../utils/validators';
 import type { ViemSDKConfig } from './types';
+import { extractEventArgument } from '../../utils/helper';
 
 export class ViemDeployerWriter {
   protected config: ViemSDKConfig;
@@ -50,6 +52,7 @@ export class ViemDeployerWriter {
     }
   }
 
+ 
   private buildTxOptions(options?: TransactionOptions) {
     const txOptions: any = {};
     if (options?.gasLimit) txOptions.gasLimit = options.gasLimit;
@@ -71,8 +74,7 @@ export class ViemDeployerWriter {
       value: parseEther(params.value || params.amountIn),
       ...this.buildTxOptions(options),
     });
-
-    return tx;
+    return tx
   }
 
   async sellToken(params: SellTokenParams, options?: TransactionOptions) {
@@ -141,9 +143,23 @@ export class ViemDeployerWriter {
     return tx;
   }
 
+  /**
+   * Launch a new token using the bonding curve
+   * @param params Token launch parameters including supplies, fees, and configuration
+   * @param options Optional transaction parameters like gas limit and gas price
+   * @returns Transaction response
+   * Protocol fee in basis points (bps).
+   * Required. This fee will automatically be allocated to the protocol.
+   * Example: 500 = 5%
+ */
   async launchToken(params: LaunchTokenParams, options?: TransactionOptions) {
+    validateLaunchTokenBondingCurveParams(params);
+    validateFeeSplitArray(params.bondingCurveFeeSplits, "bondingCurveFeeSplits");
+    validateFeeSplitArray(params.poolFeeSplits, "poolFeeSplits");
+    validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
+    
     const config = this.buildTokenDeploymentConfig(params);
-
+  
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
@@ -152,9 +168,20 @@ export class ViemDeployerWriter {
       ...this.buildTxOptions(options),
     });
 
-    return tx;
-  }
+    const receipt = await waitForTransactionReceipt(this.walletClient,{ hash: tx });
 
+    const createdTokenAddress = extractEventArgument({
+      logs: receipt.logs,
+      eventName: 'TokenLaunched',
+      argumentName: 'token'
+    });
+  
+    if (!createdTokenAddress) throw new Error('TokenLaunched event not found');
+  
+    return { tx, createdTokenAddress };
+  }
+  
+  
   async graduateToken(token: string, allowPreGraduation: boolean = false, options?: TransactionOptions) {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
@@ -201,6 +228,16 @@ export class ViemDeployerWriter {
     });
 
     return tx;
+  }
+
+  async waitForTransaction(txHash: `0x${string}`) {
+    try {
+      const receipt = await waitForTransactionReceipt(this.publicClient, { hash: txHash });
+      return receipt;
+    } catch (error) {
+      console.error('Error waiting for transaction receipt:', error);
+      throw error;
+    }
   }
 
   private buildTokenDeploymentConfig(params: LaunchTokenParams): TokenDeploymentConfig {

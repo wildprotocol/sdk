@@ -88,6 +88,7 @@ export interface LaunchTokenParams {
   vestingStartTime?: string;
   vestingDuration?: string;
   vestingWallet?: Address;
+  protocolFeeBps: number;
 }
 
 export interface BuyTokenParams {

@@ -4,6 +4,8 @@ import { BuyTokenParams, SellTokenParams, TransactionOptions, LaunchTokenParams,
 import { CONTRACTS } from '../../config';
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
 import type { EthersSDKConfig } from './types';
+import { validateFeeSplitArray, validateLaunchTokenBondingCurveParams } from '../../utils/validators';
+import { extractEventArgument } from '../../utils/helper';
 
 const ERC20_ABI = [
   'function approve(address spender, uint256 amount) returns (bool)'
@@ -90,6 +92,33 @@ async approveToken(token: string, amount: string, options?: TransactionOptions):
 }
 
 /**
+ * Approve the deployer contract to spend tokens and then sell them in a single flow
+ * @param params Parameters including token address, input amount, minimum output amount, and recipient
+ * @param options Optional transaction parameters like gas limit and gas price
+ * @returns Sell transaction response
+ */
+async approveAndSell(
+  params: SellTokenParams,
+  options?: TransactionOptions
+): Promise<ContractTransactionResponse> {
+  if (!this.signer) throw new Error('Signer is required for approve and sell transactions');
+
+  // Step 1: Approve the token
+  console.log('Approving token...');
+  const approvalTx = await this.approveToken(params.token, params.amountIn, options);
+  console.log('Approval transaction sent. Waiting for confirmation...');
+  await approvalTx.wait();
+  console.log('Token approved successfully.');
+
+  // Step 2: Sell the token
+  console.log('Selling token...');
+  const sellTx = await this.sellToken(params, options);
+  console.log('Sell transaction sent.');
+
+  return sellTx;
+}
+
+/**
  * Claim accumulated bonding curve fees for a specific token
  * @param token Token address
  * @param options Optional transaction parameters like gas limit and gas price
@@ -111,19 +140,45 @@ async claimFee(token: string, options?: TransactionOptions): Promise<ContractTra
  * @param params Token launch parameters including supplies, fees, and configuration
  * @param options Optional transaction parameters like gas limit and gas price
  * @returns Transaction response
+ * Protocol fee in basis points (bps).
+ * Required. This fee will automatically be allocated to the protocol.
+ * Example: 500 = 5%
  */
-async launchToken(params: LaunchTokenParams, options?: TransactionOptions): Promise<ContractTransactionResponse> {
+async launchToken(
+  params: LaunchTokenParams,
+  options?: TransactionOptions
+): Promise<{ tx: ContractTransactionResponse; createdTokenAddress: string }> {
   if (!this.signer) throw new Error('Signer is required for launching tokens');
+
+  validateLaunchTokenBondingCurveParams(params); 
+  validateFeeSplitArray(params.bondingCurveFeeSplits, "bondingCurveFeeSplits");
+  validateFeeSplitArray(params.poolFeeSplits, "poolFeeSplits");
+  validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
 
   const config = this.buildTokenDeploymentConfig(params);
 
   const txOptions: any = {
-    gasLimit: options?.gasLimit || 2000000
+    gasLimit: options?.gasLimit || 2_000_000,
+    ...(options?.gasPrice ? { gasPrice: options.gasPrice } : {})
   };
-  if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
 
-  return await this.contract.launchToken(config, txOptions);
+  const tx = await this.contract.launchToken(config, txOptions);
+  const receipt = await tx.wait();
+
+  const createdTokenAddress = extractEventArgument({
+    logs: receipt.logs,
+    eventName: 'TokenLaunched',
+    argumentName: 'token'
+  });
+
+  if (!createdTokenAddress) {
+    throw new Error('TokenLaunched event not found');
+  }
+
+  return { tx, createdTokenAddress };
 }
+
+
 
 /**
  * Graduate a token from the bonding curve (can allow forced graduation)
@@ -192,6 +247,19 @@ async withdrawDust(options?: TransactionOptions): Promise<ContractTransactionRes
 
   return await this.contract.withdrawDust(txOptions);
 }
+
+async waitForTransaction(txHash: string): Promise<ethers.TransactionReceipt | null> {
+  if (!this.provider) throw new Error('Provider is not initialized');
+
+  try {
+    const receipt = await this.provider.waitForTransaction(txHash);
+    return receipt;
+  } catch (error) {
+    console.error('Error waiting for transaction receipt:', error);
+    throw error;
+  }
+}
+
 
   private buildTokenDeploymentConfig(params: LaunchTokenParams): TokenDeploymentConfig {
     const totalSupply = (
