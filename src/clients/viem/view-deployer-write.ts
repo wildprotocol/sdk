@@ -4,6 +4,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
 import { CONTRACTS } from '../../config';
 import {
+  Address,
   BuyTokenParams,
   LaunchTokenParams,
   SellTokenParams,
@@ -12,7 +13,7 @@ import {
 } from '../../types';
 
 import { waitForTransactionReceipt } from 'viem/actions';
-import { validateLaunchTokenParams } from '../../utils/validators';
+import { adjustFeeSplits, validateLaunchTokenParams } from '../../utils/validators';
 import type { ViemSDKConfig } from './types';
 
 export class ViemDeployerWriter {
@@ -141,10 +142,45 @@ export class ViemDeployerWriter {
     return tx;
   }
 
+  /**
+   * Launch a new token using the bonding curve
+   * @param params Token launch parameters including supplies, fees, and configuration
+   * @param options Optional transaction parameters like gas limit and gas price
+   * @returns Transaction response
+   * Protocol fee in basis points (bps).
+   * Required. This fee will automatically be allocated to the protocol.
+   * Example: 500 = 5%
+ */
   async launchToken(params: LaunchTokenParams, options?: TransactionOptions) {
-    validateLaunchTokenParams(params);
+    const protocolFeeRecipient = "0x1234567890123456789012345678901234567890" as Address;
+    const { protocolFeeBps, ...restParams } = params;
   
-    const config = this.buildTokenDeploymentConfig(params);
+    if (!protocolFeeBps || protocolFeeBps <= 0 || protocolFeeBps >= 10000) {
+      throw new Error("Invalid protocol fee. Must be between 1 and 9999 bps.");
+    }
+  
+    const protocolFeeBigInt = BigInt(protocolFeeBps);
+  
+    const updatedParams: LaunchTokenParams = {
+      ...restParams,
+      protocolFeeBps,
+      bondingCurveFeeSplits: [
+        { recipient: protocolFeeRecipient, bps: protocolFeeBigInt },
+        ...adjustFeeSplits(restParams.bondingCurveFeeSplits, protocolFeeBigInt)
+      ],
+      graduationFeeSplits: [
+        { recipient: protocolFeeRecipient, bps: protocolFeeBigInt },
+        ...adjustFeeSplits(restParams.graduationFeeSplits, protocolFeeBigInt)
+      ],
+      poolFeeSplits: [
+        { recipient: protocolFeeRecipient, bps: protocolFeeBigInt },
+        ...adjustFeeSplits(restParams.poolFeeSplits, protocolFeeBigInt)
+      ],
+    };
+  
+    validateLaunchTokenParams(updatedParams);
+  
+    const config = this.buildTokenDeploymentConfig(updatedParams);
   
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
@@ -153,9 +189,11 @@ export class ViemDeployerWriter {
       args: [config],
       ...this.buildTxOptions(options),
     });
-
+  
     return tx;
   }
+  
+  
   
   async graduateToken(token: string, allowPreGraduation: boolean = false, options?: TransactionOptions) {
     const tx = await this.walletClient.writeContract({

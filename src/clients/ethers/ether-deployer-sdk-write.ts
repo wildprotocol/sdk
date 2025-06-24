@@ -4,7 +4,7 @@ import { BuyTokenParams, SellTokenParams, TransactionOptions, LaunchTokenParams,
 import { CONTRACTS } from '../../config';
 import { DEPLOYER_ABI } from '../../abis/deployer-abi';
 import type { EthersSDKConfig } from './types';
-import { validateLaunchTokenParams } from '../../utils/validators';
+import { adjustFeeSplits, validateLaunchTokenParams } from '../../utils/validators';
 
 const ERC20_ABI = [
   'function approve(address spender, uint256 amount) returns (bool)'
@@ -139,12 +139,42 @@ async claimFee(token: string, options?: TransactionOptions): Promise<ContractTra
  * @param params Token launch parameters including supplies, fees, and configuration
  * @param options Optional transaction parameters like gas limit and gas price
  * @returns Transaction response
+ * Protocol fee in basis points (bps).
+ * Required. This fee will automatically be allocated to the protocol.
+ * Example: 500 = 5%
  */
 async launchToken(params: LaunchTokenParams, options?: TransactionOptions): Promise<ContractTransactionResponse> {
   if (!this.signer) throw new Error('Signer is required for launching tokens');
-  validateLaunchTokenParams(params);
 
-  const config = this.buildTokenDeploymentConfig(params);
+  const protocolFeeRecipient = "0x1234567890123456789012345678901234567890" as Address;
+  const { protocolFeeBps, ...restParams } = params;
+
+  if (!protocolFeeBps || protocolFeeBps <= 0 || protocolFeeBps >= 10000) {
+    throw new Error("Invalid protocol fee. Must be between 1 and 9999 bps.");
+  }
+
+  const protocolFeeBigInt = BigInt(protocolFeeBps);
+
+  const updatedParams: LaunchTokenParams = {
+    ...restParams,
+    protocolFeeBps,
+    bondingCurveFeeSplits: [
+      { recipient: protocolFeeRecipient, bps: protocolFeeBigInt },
+      ...adjustFeeSplits(restParams.bondingCurveFeeSplits, protocolFeeBigInt)
+    ],
+    graduationFeeSplits: [
+      { recipient: protocolFeeRecipient, bps: protocolFeeBigInt },
+      ...adjustFeeSplits(restParams.graduationFeeSplits, protocolFeeBigInt)
+    ],
+    poolFeeSplits: [
+      { recipient: protocolFeeRecipient, bps: protocolFeeBigInt },
+      ...adjustFeeSplits(restParams.poolFeeSplits, protocolFeeBigInt)
+    ],
+  };
+
+  validateLaunchTokenParams(updatedParams);
+
+  const config = this.buildTokenDeploymentConfig(updatedParams);
 
   const txOptions: any = {
     gasLimit: options?.gasLimit || 2000000
@@ -153,6 +183,7 @@ async launchToken(params: LaunchTokenParams, options?: TransactionOptions): Prom
 
   return await this.contract.launchToken(config, txOptions);
 }
+
 
 /**
  * Graduate a token from the bonding curve (can allow forced graduation)

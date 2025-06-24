@@ -91,10 +91,11 @@ export default function TokenDeployer() {
         poolFees: 3000,
         poolFeeSplits: [
           { recipient: publicKey, bps: BigInt(9500) },
-          { recipient: protocolFeeRecipient, bps: BigInt(500) },
+          { recipient: protocolFeeRecipient, bps: BigInt(500) }, // this is the protocol fee recipient, Dont need to add this, it will be added automatically
         ],
         surgeFeeDuration: "900",
         maxSurgeFeeBps: "1000",
+        protocolFeeBps: 500,
       });
       console.log("Launch transaction hash:", launchTx.hash);
 
