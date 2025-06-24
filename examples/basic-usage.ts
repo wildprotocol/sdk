@@ -1,9 +1,5 @@
-import { Wallet } from 'ethers';
-import { DeployerSDK } from '../src';
-import { privateKeyToAccount } from 'viem/accounts';
-import { createWalletClient, http } from 'viem';
-import { baseSepolia } from 'viem/chains';
-import { waitForTransactionReceipt } from 'viem/actions';
+import { ethers, Wallet } from 'ethers';
+import { Address, DeployerSDK } from '../src';
 
 // read private key from .env
 const privateKey = process.env.PRIVATE_KEY;
@@ -24,22 +20,18 @@ const protocolFeeRecipient = '0x1234567890123456789012345678901234567890';
 const testTokenAddress = "0x03DDCF4ab7bF145bCf221bE21c52c6b10C2A6BC5";
 
 const randomNumber = String(Math.floor(Math.random() * 10000));
+const rpcUrl = "https://mainnet.base.org";
 
-const account = privateKeyToAccount(privateKey as `0x${string}`);
-
-const walletClient = createWalletClient({
-  account,
-  chain: baseSepolia,
-  transport: http('https://sepolia.base.org')
-});
+const provider = new ethers.JsonRpcProvider(rpcUrl);
+const signer = new Wallet(privateKey, provider);
 
 async function main() {
   // Initialize the SDK
   const sdk = await DeployerSDK.getDeployer({
-    client: "viem",
-    network: "base-sepolia",
-    rpcUrl: "https://sepolia.base.org",
-    walletClient: walletClient, // viem wallet client
+    client: "ethers",
+    network: "base-mainnet",
+    rpcUrl,
+    signer, 
   });
 
   try {
@@ -56,7 +48,7 @@ async function main() {
       name: 'TT_' + randomNumber,
       symbol: 'TTK_' + randomNumber,
       image: 'https://example.com/image.png',
-      creator: publicKey as `0x${string}`, // Ensure this is a valid address format
+      creator: publicKey as Address, // Ensure this is a valid address format
       baseToken: '0x0000000000000000000000000000000000000000', // ETH
       teamSupply: '1000000000000000000000000', // 1M tokens (18 decimals)
       totalSupply: '10000000000000000000000000', // 10M tokens
@@ -65,8 +57,8 @@ async function main() {
       bondingCurveBuyFee: '250', // 2.5% (250 basis points)
       bondingCurveSellFee: '250', // 2.5%
       bondingCurveFeeSplits: [
-        { recipient: publicKey as `0x${string}`, bps: BigInt(9500) },
-        { recipient: protocolFeeRecipient as `0x${string}`, bps: BigInt(500) } // 5% to protocol fee recipient mandatory
+        { recipient: publicKey as Address, bps: BigInt(9500) },
+        { recipient: protocolFeeRecipient as Address, bps: BigInt(500) } // 5% to protocol fee recipient mandatory
       ],
       bondingCurveParams: {
         prices: ['110000000', '120000000', '130000000', '140000000', '150000000', '160000000', '170000000', '180000000', '190000000', '200000000'], // Price points
@@ -78,8 +70,8 @@ async function main() {
       graduationFeeSplits: [],
       poolFees: 3000, // 0.3%
       poolFeeSplits: [
-        { recipient: publicKey as `0x${string}`, bps: BigInt(9500) },
-        { recipient: protocolFeeRecipient as `0x${string}`, bps: BigInt(500) } // 5% to protocol fee recipient mandatory
+        { recipient: publicKey as Address, bps: BigInt(9500) },
+        { recipient: protocolFeeRecipient as Address, bps: BigInt(500) } // 5% to protocol fee recipient mandatory
       ],
       surgeFeeDuration: '900', // 15 minutes
       maxSurgeFeeBps: '1000', // 10%
@@ -159,8 +151,8 @@ async function main() {
       value: amountETHToUseForBuy2
     });
     console.log('Buy transaction hash:', buyTx2); // excess eth is returned
-    const receipt = await waitForTransactionReceipt(walletClient, { hash: buyTx2 });
-    console.log('Transaction receipt:', receipt); // this will return the token receipt
+    const receipt = await buyTx2.wait();
+    console.log('Transaction confirmed: ', receipt); // this will return the token receipt
   
     // Graduate token
     console.log('Graduating token...');

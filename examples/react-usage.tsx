@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { privateKeyToAccount } from "viem/accounts";
 import { createWalletClient, http } from "viem";
 import { baseSepolia } from "viem/chains";
-import { useDeployerSDK } from "../src";
+import { Address, useDeployerSDK } from "../src";
 import { waitForTransactionReceipt } from "viem/actions";
 
 const deployerContractAddress = "0x8e095febb45a3c852e81599fa9e155be83b67e2c";
@@ -12,7 +12,7 @@ const amountETHToUseForBuy2 = "0.000001";
 const protocolFeeRecipient = "0x1234567890123456789012345678901234567890";
 const testTokenAddress = "0x03DDCF4ab7bF145bCf221bE21c52c6b10C2A6BC5";
 
-const privateKey = process.env.NEXT_PUBLIC_PRIVATE_KEY as `0x${string}`;
+const privateKey = process.env.PRIVATE_KEY as Address;
 
 if (!privateKey) {
   throw new Error("PRIVATE_KEY is not set");
@@ -22,7 +22,7 @@ const account = privateKeyToAccount(privateKey);
 const walletClient = createWalletClient({
   account,
   chain: baseSepolia,
-  transport: http("https://sepolia.base.org"),
+  transport: http("https://mainnet.base.org"),
 });
 
 const publicKey = account.address;
@@ -32,8 +32,8 @@ export default function TokenDeployer() {
 
   const { sdk, isLoading, error } = useDeployerSDK({
     client: "viem",
-    network: "base-sepolia",
-    rpcUrl: "https://sepolia.base.org",
+    network: "base-mainnet",
+    rpcUrl: "https://mainnet.base.org",
     walletClient,
   });
 

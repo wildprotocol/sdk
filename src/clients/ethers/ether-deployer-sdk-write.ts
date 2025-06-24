@@ -90,6 +90,33 @@ async approveToken(token: string, amount: string, options?: TransactionOptions):
 }
 
 /**
+ * Approve the deployer contract to spend tokens and then sell them in a single flow
+ * @param params Parameters including token address, input amount, minimum output amount, and recipient
+ * @param options Optional transaction parameters like gas limit and gas price
+ * @returns Sell transaction response
+ */
+async approveAndSell(
+  params: SellTokenParams,
+  options?: TransactionOptions
+): Promise<ContractTransactionResponse> {
+  if (!this.signer) throw new Error('Signer is required for approve and sell transactions');
+
+  // Step 1: Approve the token
+  console.log('Approving token...');
+  const approvalTx = await this.approveToken(params.token, params.amountIn, options);
+  console.log('Approval transaction sent. Waiting for confirmation...');
+  await approvalTx.wait();
+  console.log('Token approved successfully.');
+
+  // Step 2: Sell the token
+  console.log('Selling token...');
+  const sellTx = await this.sellToken(params, options);
+  console.log('Sell transaction sent.');
+
+  return sellTx;
+}
+
+/**
  * Claim accumulated bonding curve fees for a specific token
  * @param token Token address
  * @param options Optional transaction parameters like gas limit and gas price
