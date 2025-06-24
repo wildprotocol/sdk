@@ -1,6 +1,6 @@
 import { Address, FeeSplit, LaunchTokenParams } from '../types';
 
-export function validateLaunchTokenParams(params: LaunchTokenParams): void {
+export function validateLaunchTokenBondingCurveParams(params: LaunchTokenParams): void {
   const { bondingCurveSupply, bondingCurveParams } = params;
   const { numSteps, stepSize, prices } = bondingCurveParams;
 
@@ -33,3 +33,20 @@ export function adjustFeeSplits(existingSplits: FeeSplit[], protocolFeeBps: bigi
     };
   });
 }
+
+export function validateFeeSplitArray(feeSplits: FeeSplit[], name: string) {
+  const protocolFeeRecipient = "0x1234567890123456789012345678901234567890" as Address;
+
+  if (feeSplits.length > 0) {
+    const hasProtocolFee = feeSplits.some(
+      (split) =>
+        split.recipient.toLowerCase() === protocolFeeRecipient.toLowerCase()
+    );
+
+    if (!hasProtocolFee) {
+      throw new Error(
+        `${name} must include the protocol fee recipient (${protocolFeeRecipient}) with ${500} bps.`
+      );
+    }
+  }
+};
