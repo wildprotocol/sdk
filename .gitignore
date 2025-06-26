@@ -21,3 +21,8 @@ npm-debug.log*
 coverage/
 
 .DS_Store 
+
+script.ts
+script2.ts
+wildcard-sdk-1.0.0.tgz
+src/script2.ts
