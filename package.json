@@ -1,6 +1,6 @@
 {
   "name": "wildcard-sdk",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Node.js SDK for interacting with the Wildcard Deployer contract",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,7 +29,7 @@
   "peerDependencies": {
     "ethers": "^6.14.3",
     "viem": "^2.31.3",
-     "lightweight-charts": "^5.0.8"
+    "lightweight-charts": "^5.0.8"
   },
   "peerDependenciesMeta": {
     "ethers": {
