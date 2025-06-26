@@ -1,9 +1,9 @@
 {
   "name": "wildcard-sdk",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Node.js SDK for interacting with the Wildcard Deployer contract",
-  "main": "./dist/index.js",         
-  "module": "./dist/index.mjs",        
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
