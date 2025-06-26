@@ -603,6 +603,13 @@ export const STATEMANAGER_ABI = [
   },
   {
     inputs: [{ internalType: "address", name: "token", type: "address" }],
+    name: "getTokenPrice",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "token", type: "address" }],
     name: "getTokenState",
     outputs: [
       {

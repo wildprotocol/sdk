@@ -1,5 +1,5 @@
-import type { EthersSDKConfig } from './clients/ethers/types';
-import type { ViemSDKConfig } from './clients/viem/types';
+import type { EthersSDKConfig } from "./clients/ethers/types";
+import type { ViemSDKConfig } from "./clients/viem/types";
 
 export type Address = `0x${string}`;
 
@@ -43,16 +43,18 @@ export interface TokenDeploymentConfig {
 }
 
 export interface BuyQuote {
-  amountOut: bigint;
-  amountInUsed: bigint;
+  amountOut?: bigint;
+  amountInUsed?: bigint;
 }
 
 export interface SellQuote {
-  amountOut: bigint;
-  amountInUsed: bigint;
+  amountOut?: bigint;
+  amountInUsed?: bigint;
 }
 
-export type SDKConfig = EthersSDKConfig & { client: 'ethers' } | ViemSDKConfig & { client: 'viem' };
+export type SDKConfig =
+  | (EthersSDKConfig & { client: "ethers" })
+  | (ViemSDKConfig & { client: "viem" });
 
 export interface TransactionOptions {
   gasLimit?: bigint;
@@ -104,7 +106,7 @@ export interface SellTokenParams {
   amountIn: string;
   amountOutMin: string;
   to: string;
-} 
+}
 
 export type AutoGraduationParams = {
   tickSpacing: number;
@@ -117,7 +119,7 @@ export type AutoGraduationParams = {
 export type PoolKey = {
   token0: string; // address of token0
   token1: string; // address of token1
-  fee: number;    // pool fee in basis points
+  fee: number; // pool fee in basis points
   tickSpacing: number; // tick spacing for the pool
 };
 

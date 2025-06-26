@@ -1,9 +1,17 @@
-import { ethers, formatEther, parseEther, BigNumberish } from 'ethers';
-import { BuyQuote, SellQuote, AutoGraduationParams, PoolKey, TokenDeploymentConfig, TokenState, FeeSplit } from '../../types'; // Assuming you'll define these
-import { CONTRACTS } from '../../config';
-import { DEPLOYER_ABI } from '../../abis/deployer-abi';
-import { STATEMANAGER_ABI } from '../../abis/statemanager-abi';
-import type { EthersSDKConfig } from './types';
+import { ethers, formatEther, parseEther, BigNumberish } from "ethers";
+import {
+  BuyQuote,
+  SellQuote,
+  AutoGraduationParams,
+  PoolKey,
+  TokenDeploymentConfig,
+  TokenState,
+  FeeSplit,
+} from "../../types";
+import { CONTRACTS } from "../../config";
+import { DEPLOYER_ABI } from "../../abis/deployer-abi";
+import { STATEMANAGER_ABI } from "../../abis/statemanager-abi";
+import type { EthersSDKConfig } from "./types";
 
 export class DeployerReader {
   protected contract: ethers.Contract;
@@ -11,41 +19,64 @@ export class DeployerReader {
   protected provider: ethers.Provider;
 
   constructor(config: EthersSDKConfig) {
-    if (!config.rpcUrl) throw new Error('RPC URL is required');
+    if (!config.rpcUrl) throw new Error("RPC URL is required");
 
     const networkContracts = CONTRACTS[config.network];
-    if (!networkContracts) throw new Error(`Unsupported network: ${config.network}`);
+    if (!networkContracts)
+      throw new Error(`Unsupported network: ${config.network}`);
 
     this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
 
-    this.contract = new ethers.Contract(networkContracts.DEPLOYER_ADDRESS, DEPLOYER_ABI, this.provider);
-    this.stateManagerContract = new ethers.Contract(networkContracts.STATE_MANAGER_ADDRESS, STATEMANAGER_ABI, this.provider);
+    this.contract = new ethers.Contract(
+      networkContracts.DEPLOYER_ADDRESS,
+      DEPLOYER_ABI,
+      this.provider
+    );
+    this.stateManagerContract = new ethers.Contract(
+      networkContracts.STATE_MANAGER_ADDRESS,
+      STATEMANAGER_ABI,
+      this.provider
+    );
   }
 
   async getBuyQuote(token: string, amountIn: string): Promise<BuyQuote> {
     try {
-      await this.contract.buyQuote.estimateGas(token, parseEther(amountIn), { from: null });
+      await this.contract.buyQuote.estimateGas(token, parseEther(amountIn), {
+        from: null,
+      });
     } catch (error) {
-      const decodedError = this.contract.interface.decodeErrorResult('QuoteAmount', (error as { data: string }).data);
+      const decodedError = this.contract.interface.decodeErrorResult(
+        "QuoteAmount",
+        (error as { data: string }).data
+      );
       return {
         amountOut: decodedError.amountOut,
         amountInUsed: decodedError.effectiveAmountIn,
       };
     }
-    throw new Error('buy quote did not throw');
+    throw new Error("buy quote did not throw");
   }
 
   async getSellQuote(token: string, amountIn: string): Promise<SellQuote> {
     try {
-      await this.contract.sellQuote.estimateGas(token, parseEther(amountIn), { from: null });
+      await this.contract.sellQuote.estimateGas(token, parseEther(amountIn), {
+        from: null,
+      });
     } catch (error) {
-      const decodedError = this.contract.interface.decodeErrorResult('QuoteAmount', (error as { data: string }).data);
+      const decodedError = this.contract.interface.decodeErrorResult(
+        "QuoteAmount",
+        (error as { data: string }).data
+      );
       return {
         amountOut: decodedError.amountOut,
         amountInUsed: decodedError.effectiveAmountIn,
       };
     }
-    throw new Error('sell quote did not throw');
+    throw new Error("sell quote did not throw");
+  }
+
+  async getTokenPrice(token: string): Promise<number> {
+    return Number(await this.contract.getTokenPrice(token)) / 10 ** 36;
   }
 
   async getOwner(): Promise<string> {
@@ -64,7 +95,7 @@ export class DeployerReader {
       lastPrice,
       totalFees,
       isGraduated,
-      poolAddress
+      poolAddress,
     ] = result;
     return {
       tokensInBondingCurve: BigInt(tokensInBondingCurve),
@@ -81,11 +112,14 @@ export class DeployerReader {
   }
 
   async getBondingCurveFeeAccumulated(token: string): Promise<string> {
-    return formatEther(await this.stateManagerContract.bondingCurveFeeAccumulated(token));
+    return formatEther(
+      await this.stateManagerContract.bondingCurveFeeAccumulated(token)
+    );
   }
 
   async getAutoGraduationParams(token: string): Promise<AutoGraduationParams> {
-    const result = await this.stateManagerContract.getAutoGraduationParams(token);
+    const result =
+      await this.stateManagerContract.getAutoGraduationParams(token);
     return {
       tickSpacing: Number(result[0]),
       startingTick: Number(result[1]),
@@ -113,8 +147,11 @@ export class DeployerReader {
     return formatEther(await this.stateManagerContract.getSurgeFee(config));
   }
 
-  async getTokenDeploymentConfig(token: string): Promise<TokenDeploymentConfig> {
-    const result = await this.stateManagerContract.getTokenDeploymentConfig(token);
+  async getTokenDeploymentConfig(
+    token: string
+  ): Promise<TokenDeploymentConfig> {
+    const result =
+      await this.stateManagerContract.getTokenDeploymentConfig(token);
     return {
       creator: result.creator,
       baseToken: result.baseToken,
@@ -146,10 +183,10 @@ export class DeployerReader {
         bps: split.bps,
       })),
       bondingCurveParams: result.bondingCurveParams,
-      vestingStartTime: result.vestingStartTime?.toString() || '0',
-      vestingDuration: result.vestingDuration?.toString() || '0',
+      vestingStartTime: result.vestingStartTime?.toString() || "0",
+      vestingDuration: result.vestingDuration?.toString() || "0",
       vestingWallet: result.vestingWallet,
-      appIdentifier: result.appIdentifier || '',
+      appIdentifier: result.appIdentifier || "",
     };
   }
 
@@ -185,7 +222,9 @@ export class DeployerReader {
     return await this.stateManagerContract.tokenIdRecipient();
   }
 
-  async getTokenDeploymentConfigsMapping(token: string): Promise<TokenDeploymentConfig> {
+  async getTokenDeploymentConfigsMapping(
+    token: string
+  ): Promise<TokenDeploymentConfig> {
     return await this.getTokenDeploymentConfig(token);
   }
 
