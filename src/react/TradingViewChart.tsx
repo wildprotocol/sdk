@@ -72,7 +72,7 @@ export function TradingViewChart({
       borderVisible: false,
       wickUpColor: "#26a69a",
       wickDownColor: "#ef5350",
-      ...theme?.candlestickSeries,
+      ...theme,
     });
 
     const fetchData = async () => {
