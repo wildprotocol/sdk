@@ -71,45 +71,6 @@ export const DEPLOYER_ABI = [
       {
         indexed: true,
         internalType: "address",
-        name: "token",
-        type: "address",
-      },
-      { indexed: true, internalType: "bool", name: "isBuy", type: "bool" },
-      { indexed: true, internalType: "address", name: "to", type: "address" },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "from",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amountIn",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amountOut",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "feeAmount",
-        type: "uint256",
-      },
-    ],
-    name: "BondingCurveSwap",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
         name: "previousOwner",
         type: "address",
       },
@@ -140,19 +101,6 @@ export const DEPLOYER_ABI = [
       },
     ],
     name: "OwnershipTransferred",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "address",
-        name: "token",
-        type: "address",
-      },
-    ],
-    name: "TokenLaunched",
     type: "event",
   },
   {

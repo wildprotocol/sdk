@@ -227,7 +227,6 @@ export class DeployerWriter {
 
     const tx = await this.contract.launchToken(config, txOptions);
     const receipt = await tx.wait();
-    // console.log('Token launch transaction confirmed rec:', receipt?.logs);
 
     const createdTokenAddress = extractEventArgument({
       logs: receipt.logs,

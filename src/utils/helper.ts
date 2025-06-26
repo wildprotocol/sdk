@@ -1,6 +1,6 @@
-import { Log as EthersLog, Interface } from 'ethers';
-import { Log as ViemLog } from 'viem';
-import { DEPLOYER_ABI } from '../abis/deployer-abi';
+import { Log as EthersLog, Interface } from "ethers";
+import { Log as ViemLog } from "viem";
+import { STATEMANAGER_ABI } from "../abis/statemanager-abi";
 
 type CompatibleLog = EthersLog | ViemLog;
 
@@ -13,7 +13,7 @@ export function extractEventArgument({
   eventName: string;
   argumentName: string;
 }): string | null {
-  const iface = new Interface(DEPLOYER_ABI);
+  const iface = new Interface(STATEMANAGER_ABI);
 
   for (const log of logs) {
     try {
