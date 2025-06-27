@@ -2,7 +2,7 @@
   "name": "wildcard-sdk",
   "version": "1.2.2",
   "description": "Node.js SDK for interacting with the Wildcard Deployer contract",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -11,13 +11,12 @@
       "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
     },
-    "./react/TradingViewChart": {
-      "import": "./dist/react/TradingViewChart.mjs",
-      "require": "./dist/react/TradingViewChart.cjs"
+    "./react": {
+      "import": "./dist/react/index.mjs"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist --clean",
     "dev": "tsc --watch",
     "test": "jest",
     "lint": "eslint src/**/*.ts",

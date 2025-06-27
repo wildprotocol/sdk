@@ -1,9 +1,8 @@
 // Main SDK export
 export { DeployerSDK } from "./deployer-sdk";
 
-// React Hook export
-export { useDeployerSDK } from "./react/useDeployerSDK";
-export { TradingViewChart } from "./react/TradingViewChart";
+export { EthersDeployer } from "./clients/ethers";
+export { ViemDeployer } from "./clients/viem";
 
 // Type exports
 export * from "./types";
