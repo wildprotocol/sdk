@@ -86,6 +86,13 @@ export const LP_LOCKER_ABI = [
   },
   {
     inputs: [{ internalType: "address", name: "token", type: "address" }],
+    name: "getSqrtPriceX96",
+    outputs: [{ internalType: "uint160", name: "", type: "uint160" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "token", type: "address" }],
     name: "getTokenParams",
     outputs: [
       { internalType: "uint256", name: "poolTokenId", type: "uint256" },
@@ -165,4 +172,4 @@ export const LP_LOCKER_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
-];
+] as const;

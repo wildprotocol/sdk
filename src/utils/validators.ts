@@ -1,6 +1,9 @@
-import { Address, FeeSplit, LaunchTokenParams } from '../types';
+import { isHexString } from "ethers";
+import { Address, FeeSplit, LaunchTokenParams } from "../types";
 
-export function validateLaunchTokenBondingCurveParams(params: LaunchTokenParams): void {
+export function validateLaunchTokenBondingCurveParams(
+  params: LaunchTokenParams
+): void {
   const { bondingCurveSupply, bondingCurveParams } = params;
   const { numSteps, stepSize, prices } = bondingCurveParams;
 
@@ -18,24 +21,30 @@ export function validateLaunchTokenBondingCurveParams(params: LaunchTokenParams)
   }
 }
 
-
-export function adjustFeeSplits(existingSplits: FeeSplit[], protocolFeeBps: bigint): FeeSplit[] {
+export function adjustFeeSplits(
+  existingSplits: FeeSplit[],
+  protocolFeeBps: bigint
+): FeeSplit[] {
   const remainingBps = 10_000n - protocolFeeBps;
-  const totalBps = existingSplits.reduce((sum, split) => sum + BigInt(split.bps), 0n);
+  const totalBps = existingSplits.reduce(
+    (sum, split) => sum + BigInt(split.bps),
+    0n
+  );
 
   if (totalBps === 0n) return [];
 
-  return existingSplits.map(split => {
+  return existingSplits.map((split) => {
     const adjustedBps = (BigInt(split.bps) * remainingBps) / totalBps;
     return {
       recipient: split.recipient as Address,
-      bps: adjustedBps
+      bps: adjustedBps,
     };
   });
 }
 
 export function validateFeeSplitArray(feeSplits: FeeSplit[], name: string) {
-  const protocolFeeRecipient = "0x1234567890123456789012345678901234567890" as Address;
+  const protocolFeeRecipient =
+    "0x136F342DBC00Dc105B23ecC40b1134830720f721" as Address;
 
   if (feeSplits.length > 0) {
     const hasProtocolFee = feeSplits.some(
@@ -49,4 +58,10 @@ export function validateFeeSplitArray(feeSplits: FeeSplit[], name: string) {
       );
     }
   }
-};
+}
+
+export function validateSalt(salt: string): void {
+  if (!isHexString(salt, 32)) {
+    throw new Error("Invalid salt: must be a 32-byte hex string (0x-prefixed)");
+  }
+}

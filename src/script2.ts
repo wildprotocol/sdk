@@ -8,7 +8,7 @@ if (!privateKey) {
   throw new Error("PRIVATE_KEY is not set");
 }
 
-const publicKey = new Wallet(privateKey).address;
+const publicKey = new Wallet(privateKey).address as `0x${string}`;
 console.log("Public key:", publicKey);
 
 const deployerContractAddress = "0x046e2ada75ba114af04a11c5ae935d3814c9fc53";
@@ -46,21 +46,24 @@ async function main() {
       bondingCurveBuyFee: "250", // 2.5% (250 basis points)
       bondingCurveSellFee: "250", // 2.5%
       bondingCurveFeeSplits: [
-        { recipient: publicKey, bps: "9500" },
-        { recipient: protocolFeeRecipient, bps: "500" }, // 5% to protocol fee recipient mandatory
+        { recipient: publicKey, bps: 9500n },
+        { recipient: protocolFeeRecipient, bps: 500n }, // 5% to protocol fee recipient mandatory
       ],
       bondingCurveParams: {
         prices: ["11", "12", "13", "14", "15", "16", "17", "18", "19", "20"], // Price points
         numSteps: "10",
         stepSize: "500000000000000000000", // 500 tokens per step, 500 * 10 = 5000 tokens
       },
+      totalSupply: "1000000000000000000000000", // 1M tokens
+      allowAutoGraduation: false,
       allowForcedGraduation: false,
+      protocolFeeBps: 500,
       graduationFeeBps: "0",
       graduationFeeSplits: [],
       poolFees: 3000, // 0.3%
       poolFeeSplits: [
-        { recipient: publicKey, bps: "9500" },
-        { recipient: protocolFeeRecipient, bps: "500" }, // 5% to protocol fee recipient mandatory
+        { recipient: publicKey, bps: 9500n },
+        { recipient: protocolFeeRecipient, bps: 500n }, // 5% to protocol fee recipient mandatory
       ],
       surgeFeeDuration: "900", // 15 minutes
       maxSurgeFeeBps: "1000", // 10%

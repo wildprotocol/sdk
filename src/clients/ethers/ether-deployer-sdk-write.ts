@@ -19,8 +19,9 @@ import type { EthersSDKConfig } from "./types";
 import {
   validateFeeSplitArray,
   validateLaunchTokenBondingCurveParams,
+  validateSalt,
 } from "../../utils/validators";
-import { extractEventArgument } from "../../utils/helper";
+import { extractEventArgument, generateSalt } from "../../utils/helper";
 
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -205,6 +206,7 @@ export class DeployerWriter {
    */
   async launchToken(
     params: LaunchTokenParams,
+    salt?: string,
     options?: TransactionOptions
   ): Promise<{ tx: ContractTransactionResponse; createdTokenAddress: string }> {
     if (!this.signer)
@@ -221,11 +223,14 @@ export class DeployerWriter {
     const config = this.buildTokenDeploymentConfig(params);
 
     const txOptions: any = {
-      gasLimit: options?.gasLimit || 2_000_000,
+      gasLimit: options?.gasLimit || 6_000_000,
       ...(options?.gasPrice ? { gasPrice: options.gasPrice } : {}),
     };
 
-    const tx = await this.contract.launchToken(config, txOptions);
+    const finalSalt = salt ?? generateSalt();
+    validateSalt(finalSalt);
+
+    const tx = await this.contract.launchToken(config, finalSalt, txOptions);
     const receipt = await tx.wait();
 
     const createdTokenAddress = extractEventArgument({
@@ -387,6 +392,7 @@ export class DeployerWriter {
         stepSize: BigInt(params.bondingCurveParams.stepSize),
       },
       allowForcedGraduation: params.allowForcedGraduation,
+      allowAutoGraduation: params.allowAutoGraduation,
       graduationFeeBps: BigInt(params.graduationFeeBps),
       graduationFeeSplits: params.graduationFeeSplits.map((split) => ({
         recipient: split.recipient,
