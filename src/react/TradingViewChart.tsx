@@ -14,6 +14,8 @@ import {
   type DeepPartial,
   type ChartOptions,
   CandlestickSeries,
+  SeriesOptionsCommon,
+  CandlestickStyleOptions,
 } from "lightweight-charts";
 
 type TradingViewChartProps = {
@@ -24,7 +26,9 @@ type TradingViewChartProps = {
   chain_id: string;
   apiUrl?: string;
   useMockIfEmpty?: boolean;
-  theme?: DeepPartial<ChartOptions>; // theming support
+  theme?: DeepPartial<
+    CandlestickStyleOptions & SeriesOptionsCommon & ChartOptions
+  >; // theming support
 };
 
 export function TradingViewChart({
