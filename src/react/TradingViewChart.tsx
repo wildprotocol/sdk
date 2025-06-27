@@ -21,6 +21,7 @@ type TradingViewChartProps = {
   interval: "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
   from: number;
   to: number;
+  chain_id: string;
   apiUrl?: string;
   useMockIfEmpty?: boolean;
   theme?: DeepPartial<ChartOptions>; // theming support
@@ -31,6 +32,7 @@ export function TradingViewChart({
   interval,
   from,
   to,
+  chain_id = "84532",
   apiUrl = "https://lp.microcash.me/api/v1/chaindata/price-chart",
   useMockIfEmpty = false,
   theme,
@@ -82,6 +84,7 @@ export function TradingViewChart({
           interval,
           start_time: from.toString(),
           end_time: to.toString(),
+          chain_id: chain_id,
         });
 
         const res = await fetch(`${apiUrl}?${query}`);
