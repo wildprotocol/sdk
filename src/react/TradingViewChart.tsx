@@ -20,7 +20,7 @@ import {
 
 type TradingViewChartProps = {
   token: string;
-  interval: "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
+  interval: "1m" | "5m" | "15m" | "1h" | "4h" | "1d" | "1w" | "1M" | "1y";
   from: number;
   to: number;
   chain_id: string;
@@ -78,6 +78,11 @@ export function TradingViewChart({
       borderVisible: false,
       wickUpColor: "#26a69a",
       wickDownColor: "#ef5350",
+      priceFormat: {
+        type: "price",
+        precision: 12,
+        minMove: 0.000000000001,
+      },
       ...theme,
     });
 
