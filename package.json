@@ -12,11 +12,12 @@
       "types": "./dist/index.d.ts"
     },
     "./react": {
-      "import": "./dist/react/index.mjs"
+      "import": "./dist/react/index.mjs",
+      "types": "./dist/react/index.d.ts"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist --clean",
+    "build": "tsup",
     "dev": "tsc --watch",
     "test": "jest",
     "lint": "eslint src/**/*.ts",

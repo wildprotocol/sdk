@@ -2,7 +2,7 @@ import { defineConfig } from "tsup";
 
 export default defineConfig([
   {
-    entry: ["src/index.ts"], // Node-safe SDK
+    entry: ["src/index.ts"],
     format: ["esm", "cjs"],
     outDir: "dist",
     target: "esnext",
@@ -13,10 +13,10 @@ export default defineConfig([
     outExtension({ format }) {
       return { js: format === "esm" ? ".mjs" : ".cjs" };
     },
-    external: ["react", "react-dom", "lightweight-charts"], // Avoid bundling
+    external: ["react", "react-dom", "lightweight-charts"],
   },
   {
-    entry: ["src/react/index.ts"], // React-only exports
+    entry: ["src/react/index.ts"],
     format: ["esm"],
     outDir: "dist/react",
     target: "esnext",
