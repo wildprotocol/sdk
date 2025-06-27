@@ -1,6 +1,6 @@
 {
   "name": "wildcard-sdk",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Node.js SDK for interacting with the Wildcard Deployer contract",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
