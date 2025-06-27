@@ -252,6 +252,7 @@ export class ViemDeployerReader {
       totalSupply: result.totalSupply.toString(),
       bondingCurveBuyFee: result.bondingCurveBuyFee,
       bondingCurveSellFee: result.bondingCurveSellFee,
+      allowAutoGraduation: result.allowAutoGraduation,
       allowForcedGraduation: result.allowForcedGraduation,
       graduationFeeBps: result.graduationFeeBps,
       poolFees: result.poolFees,

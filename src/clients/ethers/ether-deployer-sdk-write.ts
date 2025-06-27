@@ -205,6 +205,7 @@ export class DeployerWriter {
    */
   async launchToken(
     params: LaunchTokenParams,
+    salt?: string,
     options?: TransactionOptions
   ): Promise<{ tx: ContractTransactionResponse; createdTokenAddress: string }> {
     if (!this.signer)
@@ -224,6 +225,11 @@ export class DeployerWriter {
       gasLimit: options?.gasLimit || 2_000_000,
       ...(options?.gasPrice ? { gasPrice: options.gasPrice } : {}),
     };
+
+    if (salt == null) {
+      // Random bytes32
+      // salt = ethers.randomBytes(32).toString("hex");
+    }
 
     const tx = await this.contract.launchToken(config, txOptions);
     const receipt = await tx.wait();
@@ -387,6 +393,7 @@ export class DeployerWriter {
         stepSize: BigInt(params.bondingCurveParams.stepSize),
       },
       allowForcedGraduation: params.allowForcedGraduation,
+      allowAutoGraduation: params.allowAutoGraduation,
       graduationFeeBps: BigInt(params.graduationFeeBps),
       graduationFeeSplits: params.graduationFeeSplits.map((split) => ({
         recipient: split.recipient,

@@ -16,11 +16,12 @@ import { waitForTransactionReceipt } from 'viem/actions';
 import { validateFeeSplitArray, validateLaunchTokenBondingCurveParams } from '../../utils/validators';
 import type { ViemSDKConfig } from './types';
 import { extractEventArgument } from '../../utils/helper';
+import type { WalletClient } from 'viem';
 
 export class ViemDeployerWriter {
   protected config: ViemSDKConfig;
-  protected publicClient: any;
-  protected walletClient: any;
+  protected publicClient: ReturnType<typeof createPublicClient>;
+  protected walletClient: WalletClient;
   protected deployerAddress: string;
   protected stateManagerAddress: string;
 
@@ -108,7 +109,7 @@ export class ViemDeployerWriter {
         "stateMutability": "nonpayable",
         "type": "function"
       }
-    ];
+    ] as const;
 
     const tx = await this.walletClient.writeContract({
       address: token as `0x${string}`,
@@ -272,6 +273,7 @@ export class ViemDeployerWriter {
         numSteps: BigInt(params.bondingCurveParams.numSteps),
         stepSize: BigInt(params.bondingCurveParams.stepSize),
       },
+      allowAutoGraduation: params.allowAutoGraduation,
       allowForcedGraduation: params.allowForcedGraduation,
       graduationFeeBps: BigInt(params.graduationFeeBps),
       graduationFeeSplits: params.graduationFeeSplits.map(split => ({
