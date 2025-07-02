@@ -79,6 +79,17 @@ export class DeployerReader {
     return Number(await this.contract.getTokenPrice(token)) / 10 ** 36;
   }
 
+  async getPredictedTokenAddress(
+    owner: `0x${string}`,
+    salt: `0x${string}`
+  ): Promise<{
+    addr: `0x${string}`;
+    exists: boolean;
+  }> {
+    const [addr, exists] = await this.contract.predictTokenAddress(owner, salt);
+    return { addr, exists };
+  }
+
   async getOwner(): Promise<string> {
     return await this.contract.owner();
   }
@@ -164,6 +175,7 @@ export class DeployerReader {
       totalSupply: result.totalSupply.toString(),
       bondingCurveBuyFee: result.bondingCurveBuyFee,
       bondingCurveSellFee: result.bondingCurveSellFee,
+      allowAutoGraduation: result.allowAutoGraduation,
       allowForcedGraduation: result.allowForcedGraduation,
       graduationFeeBps: result.graduationFeeBps,
       poolFees: result.poolFees,

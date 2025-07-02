@@ -1,43 +1,50 @@
-import { createPublicClient, createWalletClient, http, parseEther } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { createPublicClient, createWalletClient, http, parseEther } from "viem";
+import { base, baseSepolia } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
 
-import { DEPLOYER_ABI } from '../../abis/deployer-abi';
-import { CONTRACTS } from '../../config';
+import { DEPLOYER_ABI } from "../../abis/deployer-abi";
+import { CONTRACTS } from "../../config";
 import {
   Address,
   BuyTokenParams,
   LaunchTokenParams,
   SellTokenParams,
   TokenDeploymentConfig,
-  TransactionOptions
-} from '../../types';
+  TransactionOptions,
+} from "../../types";
 
-import { waitForTransactionReceipt } from 'viem/actions';
-import { validateFeeSplitArray, validateLaunchTokenBondingCurveParams } from '../../utils/validators';
-import type { ViemSDKConfig } from './types';
-import { extractEventArgument } from '../../utils/helper';
+import { waitForTransactionReceipt } from "viem/actions";
+import {
+  validateFeeSplitArray,
+  validateLaunchTokenBondingCurveParams,
+  validateSalt,
+} from "../../utils/validators";
+import type { ViemSDKConfig } from "./types";
+import { extractEventArgument, generateSalt } from "../../utils/helper";
+import type { WalletClient } from "viem";
 
 export class ViemDeployerWriter {
   protected config: ViemSDKConfig;
-  protected publicClient: any;
-  protected walletClient: any;
+  protected publicClient: ReturnType<typeof createPublicClient>;
+  protected walletClient: WalletClient;
   protected deployerAddress: string;
   protected stateManagerAddress: string;
 
   constructor(config: ViemSDKConfig) {
     this.config = config;
-  
-    if (!config.rpcUrl) throw new Error('RPC URL is required');
+
+    if (!config.rpcUrl) throw new Error("RPC URL is required");
     const networkContracts = CONTRACTS[config.network];
-    if (!networkContracts) throw new Error(`Unsupported network: ${config.network}`);
-  
+    if (!networkContracts)
+      throw new Error(`Unsupported network: ${config.network}`);
+
     this.deployerAddress = networkContracts.DEPLOYER_ADDRESS;
     this.stateManagerAddress = networkContracts.STATE_MANAGER_ADDRESS;
-  
+
     this.publicClient = createPublicClient({
       transport: http(config.rpcUrl),
     });
-  
+
     if (config.walletClient) {
       // If consumer passed a connected wallet client (ex: from viem/wagmi)
       this.walletClient = config.walletClient;
@@ -46,13 +53,15 @@ export class ViemDeployerWriter {
       this.walletClient = createWalletClient({
         account,
         transport: http(config.rpcUrl),
+        chain: config.network === "base-sepolia" ? baseSepolia : base,
       });
     } else {
-      throw new Error('Wallet Client or Private Key is required for write operations');
+      throw new Error(
+        "Wallet Client or Private Key is required for write operations"
+      );
     }
   }
 
- 
   private buildTxOptions(options?: TransactionOptions) {
     const txOptions: any = {};
     if (options?.gasLimit) txOptions.gasLimit = options.gasLimit;
@@ -64,7 +73,7 @@ export class ViemDeployerWriter {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
-      functionName: 'buyToken',
+      functionName: "buyToken",
       args: [
         params.token as `0x${string}`,
         parseEther(params.amountIn),
@@ -74,14 +83,14 @@ export class ViemDeployerWriter {
       value: parseEther(params.value || params.amountIn),
       ...this.buildTxOptions(options),
     });
-    return tx
+    return tx;
   }
 
   async sellToken(params: SellTokenParams, options?: TransactionOptions) {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
-      functionName: 'sellToken',
+      functionName: "sellToken",
       args: [
         params.token as `0x${string}`,
         parseEther(params.amountIn),
@@ -94,26 +103,28 @@ export class ViemDeployerWriter {
     return tx;
   }
 
-  async approveToken(token: string, amount: string, options?: TransactionOptions) {
+  async approveToken(
+    token: string,
+    amount: string,
+    options?: TransactionOptions
+  ) {
     const ERC20_ABI = [
       {
-        "inputs": [
-          { "internalType": "address", "name": "spender", "type": "address" },
-          { "internalType": "uint256", "name": "amount", "type": "uint256" }
+        inputs: [
+          { internalType: "address", name: "spender", type: "address" },
+          { internalType: "uint256", name: "amount", type: "uint256" },
         ],
-        "name": "approve",
-        "outputs": [
-          { "internalType": "bool", "name": "", "type": "bool" }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      }
-    ];
+        name: "approve",
+        outputs: [{ internalType: "bool", name: "", type: "bool" }],
+        stateMutability: "nonpayable",
+        type: "function",
+      },
+    ] as const;
 
     const tx = await this.walletClient.writeContract({
       address: token as `0x${string}`,
       abi: ERC20_ABI,
-      functionName: 'approve',
+      functionName: "approve",
       args: [this.deployerAddress as `0x${string}`, parseEther(amount)],
       ...this.buildTxOptions(options),
     });
@@ -123,11 +134,11 @@ export class ViemDeployerWriter {
 
   async approveAndSell(params: SellTokenParams, options?: TransactionOptions) {
     await this.approveToken(params.token, params.amountIn, options);
-    console.log('Approval successful');
-  
+    console.log("Approval successful");
+
     const txHash = await this.sellToken(params, options);
-    console.log('Sell transaction sent:', txHash);
-  
+    console.log("Sell transaction sent:", txHash);
+
     return txHash;
   }
 
@@ -135,7 +146,7 @@ export class ViemDeployerWriter {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
-      functionName: 'claimFee',
+      functionName: "claimFee",
       args: [token as `0x${string}`],
       ...this.buildTxOptions(options),
     });
@@ -151,42 +162,59 @@ export class ViemDeployerWriter {
    * Protocol fee in basis points (bps).
    * Required. This fee will automatically be allocated to the protocol.
    * Example: 500 = 5%
- */
-  async launchToken(params: LaunchTokenParams, options?: TransactionOptions) {
+   */
+  async launchToken(
+    params: LaunchTokenParams,
+    salt?: string,
+    options?: TransactionOptions
+  ) {
     validateLaunchTokenBondingCurveParams(params);
-    validateFeeSplitArray(params.bondingCurveFeeSplits, "bondingCurveFeeSplits");
+    validateFeeSplitArray(
+      params.bondingCurveFeeSplits,
+      "bondingCurveFeeSplits"
+    );
     validateFeeSplitArray(params.poolFeeSplits, "poolFeeSplits");
     validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
-    
+
     const config = this.buildTokenDeploymentConfig(params);
-  
+
+    const finalSalt = salt ?? generateSalt();
+    validateSalt(finalSalt);
+
+    const args = [config, finalSalt] as const;
+
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
-      functionName: 'launchToken',
-      args: [config],
+      functionName: "launchToken",
+      args,
       ...this.buildTxOptions(options),
     });
 
-    const receipt = await waitForTransactionReceipt(this.walletClient,{ hash: tx });
+    const receipt = await waitForTransactionReceipt(this.walletClient, {
+      hash: tx,
+    });
 
     const createdTokenAddress = extractEventArgument({
       logs: receipt.logs,
-      eventName: 'TokenLaunched',
-      argumentName: 'token'
+      eventName: "TokenLaunched",
+      argumentName: "token",
     });
-  
-    if (!createdTokenAddress) throw new Error('TokenLaunched event not found');
-  
+
+    if (!createdTokenAddress) throw new Error("TokenLaunched event not found");
+
     return { tx, createdTokenAddress };
   }
-  
-  
-  async graduateToken(token: string, allowPreGraduation: boolean = false, options?: TransactionOptions) {
+
+  async graduateToken(
+    token: string,
+    allowPreGraduation: boolean = false,
+    options?: TransactionOptions
+  ) {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
-      functionName: 'graduateToken',
+      functionName: "graduateToken",
       args: [token as `0x${string}`, allowPreGraduation],
       ...this.buildTxOptions(options),
     });
@@ -194,11 +222,15 @@ export class ViemDeployerWriter {
     return tx;
   }
 
-  async setBaseTokenWhitelist(token: string, whitelisted: boolean, options?: TransactionOptions) {
+  async setBaseTokenWhitelist(
+    token: string,
+    whitelisted: boolean,
+    options?: TransactionOptions
+  ) {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
-      functionName: 'setBaseTokenWhitelist',
+      functionName: "setBaseTokenWhitelist",
       args: [token as `0x${string}`, whitelisted],
       ...this.buildTxOptions(options),
     });
@@ -210,7 +242,7 @@ export class ViemDeployerWriter {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
-      functionName: 'relinquishStateManager',
+      functionName: "relinquishStateManager",
       args: [],
       ...this.buildTxOptions(options),
     });
@@ -222,7 +254,7 @@ export class ViemDeployerWriter {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
-      functionName: 'withdrawDust',
+      functionName: "withdrawDust",
       args: [],
       ...this.buildTxOptions(options),
     });
@@ -232,15 +264,19 @@ export class ViemDeployerWriter {
 
   async waitForTransaction(txHash: `0x${string}`) {
     try {
-      const receipt = await waitForTransactionReceipt(this.publicClient, { hash: txHash });
+      const receipt = await waitForTransactionReceipt(this.publicClient, {
+        hash: txHash,
+      });
       return receipt;
     } catch (error) {
-      console.error('Error waiting for transaction receipt:', error);
+      console.error("Error waiting for transaction receipt:", error);
       throw error;
     }
   }
 
-  private buildTokenDeploymentConfig(params: LaunchTokenParams): TokenDeploymentConfig {
+  private buildTokenDeploymentConfig(
+    params: LaunchTokenParams
+  ): TokenDeploymentConfig {
     const totalSupply = (
       BigInt(params.teamSupply) +
       BigInt(params.bondingCurveSupply) +
@@ -253,33 +289,40 @@ export class ViemDeployerWriter {
       name: params.name,
       symbol: params.symbol,
       image: params.image,
-      appIdentifier: '',
+      appIdentifier: "",
       teamSupply: BigInt(params.teamSupply),
-      vestingStartTime: params.vestingStartTime ? BigInt(params.vestingStartTime) : BigInt(0),
-      vestingDuration: params.vestingDuration ? BigInt(params.vestingDuration) : BigInt(0),
-      vestingWallet: params.vestingWallet ? params.vestingWallet : '0x0000000000000000000000000000000000000000',
+      vestingStartTime: params.vestingStartTime
+        ? BigInt(params.vestingStartTime)
+        : BigInt(0),
+      vestingDuration: params.vestingDuration
+        ? BigInt(params.vestingDuration)
+        : BigInt(0),
+      vestingWallet: params.vestingWallet
+        ? params.vestingWallet
+        : "0x0000000000000000000000000000000000000000",
       bondingCurveSupply: BigInt(params.bondingCurveSupply),
       liquidityPoolSupply: BigInt(params.liquidityPoolSupply),
       totalSupply: BigInt(totalSupply),
       bondingCurveBuyFee: BigInt(params.bondingCurveBuyFee),
       bondingCurveSellFee: BigInt(params.bondingCurveSellFee),
-      bondingCurveFeeSplits: params.bondingCurveFeeSplits.map(split => ({
+      bondingCurveFeeSplits: params.bondingCurveFeeSplits.map((split) => ({
         recipient: split.recipient,
         bps: split.bps,
       })),
       bondingCurveParams: {
-        prices: params.bondingCurveParams.prices.map(price => BigInt(price)),
+        prices: params.bondingCurveParams.prices.map((price) => BigInt(price)),
         numSteps: BigInt(params.bondingCurveParams.numSteps),
         stepSize: BigInt(params.bondingCurveParams.stepSize),
       },
+      allowAutoGraduation: params.allowAutoGraduation,
       allowForcedGraduation: params.allowForcedGraduation,
       graduationFeeBps: BigInt(params.graduationFeeBps),
-      graduationFeeSplits: params.graduationFeeSplits.map(split => ({
+      graduationFeeSplits: params.graduationFeeSplits.map((split) => ({
         recipient: split.recipient,
         bps: split.bps,
       })),
       poolFees: params.poolFees,
-      poolFeeSplits: params.poolFeeSplits.map(split => ({
+      poolFeeSplits: params.poolFeeSplits.map((split) => ({
         recipient: split.recipient,
         bps: split.bps,
       })),
