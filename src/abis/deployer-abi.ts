@@ -43,6 +43,11 @@ export const DEPLOYER_ABI = [
   },
   { inputs: [], name: "QuoteNotImplemented", type: "error" },
   { inputs: [], name: "Reentrancy", type: "error" },
+  {
+    inputs: [{ internalType: "address", name: "token", type: "address" }],
+    name: "SafeERC20FailedOperation",
+    type: "error",
+  },
   { inputs: [], name: "TokenAlreadyLaunched", type: "error" },
   { inputs: [], name: "TokenNotLaunched", type: "error" },
   { inputs: [], name: "TokenStateNotSet", type: "error" },
@@ -172,6 +177,7 @@ export const DEPLOYER_ABI = [
             type: "tuple",
           },
           { internalType: "bool", name: "allowForcedGraduation", type: "bool" },
+          { internalType: "bool", name: "allowAutoGraduation", type: "bool" },
           {
             internalType: "uint256",
             name: "graduationFeeBps",
@@ -262,33 +268,6 @@ export const DEPLOYER_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "address", name: "token", type: "address" },
-      { internalType: "uint256", name: "amountIn", type: "uint256" },
-    ],
-    name: "getBuyQuote",
-    outputs: [
-      { internalType: "uint256", name: "", type: "uint256" },
-      { internalType: "uint256", name: "", type: "uint256" },
-      { internalType: "uint256", name: "", type: "uint256" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "token", type: "address" },
-      { internalType: "uint256", name: "amountIn", type: "uint256" },
-    ],
-    name: "getSellQuote",
-    outputs: [
-      { internalType: "uint256", name: "", type: "uint256" },
-      { internalType: "uint256", name: "", type: "uint256" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
     inputs: [{ internalType: "address", name: "token", type: "address" }],
     name: "getTokenPrice",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
@@ -367,6 +346,7 @@ export const DEPLOYER_ABI = [
             type: "tuple",
           },
           { internalType: "bool", name: "allowForcedGraduation", type: "bool" },
+          { internalType: "bool", name: "allowAutoGraduation", type: "bool" },
           {
             internalType: "uint256",
             name: "graduationFeeBps",
@@ -407,6 +387,7 @@ export const DEPLOYER_ABI = [
         name: "tokenDeploymentConfig",
         type: "tuple",
       },
+      { internalType: "bytes32", name: "salt", type: "bytes32" },
     ],
     name: "launchToken",
     outputs: [{ internalType: "address", name: "", type: "address" }],
@@ -466,6 +447,19 @@ export const DEPLOYER_ABI = [
     name: "poolManager",
     outputs: [
       { internalType: "contract IPoolManager", name: "", type: "address" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "owner", type: "address" },
+      { internalType: "bytes32", name: "salt", type: "bytes32" },
+    ],
+    name: "predictTokenAddress",
+    outputs: [
+      { internalType: "address", name: "addr", type: "address" },
+      { internalType: "bool", name: "exists", type: "bool" },
     ],
     stateMutability: "view",
     type: "function",

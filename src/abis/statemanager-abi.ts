@@ -21,6 +21,7 @@ export const STATEMANAGER_ABI = [
   { inputs: [], name: "InsufficientETHSent", type: "error" },
   { inputs: [], name: "InsufficientInputAmount", type: "error" },
   { inputs: [], name: "InsufficientTokenBalanceInBondingCurve", type: "error" },
+  { inputs: [], name: "InvalidBondingCurveSupply", type: "error" },
   { inputs: [], name: "InvalidFeeSplits", type: "error" },
   { inputs: [], name: "InvalidPriceX96", type: "error" },
   { inputs: [], name: "InvalidToken0Amount", type: "error" },
@@ -39,6 +40,11 @@ export const STATEMANAGER_ABI = [
     type: "error",
   },
   { inputs: [], name: "PriceCurveOutOfBounds", type: "error" },
+  {
+    inputs: [{ internalType: "address", name: "token", type: "address" }],
+    name: "SafeERC20FailedOperation",
+    type: "error",
+  },
   { inputs: [], name: "SlippageExceeded", type: "error" },
   { inputs: [], name: "StartTickTooLarge", type: "error" },
   {
@@ -246,6 +252,7 @@ export const STATEMANAGER_ABI = [
             type: "tuple",
           },
           { internalType: "bool", name: "allowForcedGraduation", type: "bool" },
+          { internalType: "bool", name: "allowAutoGraduation", type: "bool" },
           {
             internalType: "uint256",
             name: "graduationFeeBps",
@@ -321,7 +328,10 @@ export const STATEMANAGER_ABI = [
       { internalType: "address", name: "to", type: "address" },
     ],
     name: "buyToken",
-    outputs: [],
+    outputs: [
+      { internalType: "uint256", name: "", type: "uint256" },
+      { internalType: "bool", name: "", type: "bool" },
+    ],
     stateMutability: "payable",
     type: "function",
   },
@@ -395,6 +405,7 @@ export const STATEMANAGER_ABI = [
     outputs: [
       { internalType: "uint256", name: "", type: "uint256" },
       { internalType: "uint256", name: "", type: "uint256" },
+      { internalType: "uint256", name: "", type: "uint256" },
     ],
     stateMutability: "view",
     type: "function",
@@ -454,6 +465,7 @@ export const STATEMANAGER_ABI = [
             type: "tuple",
           },
           { internalType: "bool", name: "allowForcedGraduation", type: "bool" },
+          { internalType: "bool", name: "allowAutoGraduation", type: "bool" },
           {
             internalType: "uint256",
             name: "graduationFeeBps",
@@ -557,6 +569,7 @@ export const STATEMANAGER_ABI = [
             type: "tuple",
           },
           { internalType: "bool", name: "allowForcedGraduation", type: "bool" },
+          { internalType: "bool", name: "allowAutoGraduation", type: "bool" },
           {
             internalType: "uint256",
             name: "graduationFeeBps",
@@ -757,7 +770,7 @@ export const STATEMANAGER_ABI = [
       { internalType: "address", name: "to", type: "address" },
     ],
     name: "sellToken",
-    outputs: [],
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "nonpayable",
     type: "function",
   },
@@ -830,6 +843,7 @@ export const STATEMANAGER_ABI = [
             type: "tuple",
           },
           { internalType: "bool", name: "allowForcedGraduation", type: "bool" },
+          { internalType: "bool", name: "allowAutoGraduation", type: "bool" },
           {
             internalType: "uint256",
             name: "graduationFeeBps",
@@ -924,6 +938,7 @@ export const STATEMANAGER_ABI = [
         type: "tuple",
       },
       { internalType: "bool", name: "allowForcedGraduation", type: "bool" },
+      { internalType: "bool", name: "allowAutoGraduation", type: "bool" },
       { internalType: "uint256", name: "graduationFeeBps", type: "uint256" },
       { internalType: "uint24", name: "poolFees", type: "uint24" },
       {

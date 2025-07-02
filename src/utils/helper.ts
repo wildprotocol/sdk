@@ -1,6 +1,7 @@
 import { Log as EthersLog, Interface } from "ethers";
 import { Log as ViemLog } from "viem";
 import { STATEMANAGER_ABI } from "../abis/statemanager-abi";
+import { randomBytes } from "crypto";
 
 type CompatibleLog = EthersLog | ViemLog;
 
@@ -31,4 +32,8 @@ export function extractEventArgument({
   }
 
   return null;
+}
+
+export function generateSalt(): string {
+  return "0x" + randomBytes(32).toString("hex"); // 32 bytes = 64 hex chars
 }

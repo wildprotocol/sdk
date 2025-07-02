@@ -32,6 +32,7 @@ export interface TokenDeploymentConfig {
   bondingCurveSellFee: bigint;
   bondingCurveFeeSplits: FeeSplit[];
   bondingCurveParams: PriceCurve;
+  allowAutoGraduation: boolean;
   allowForcedGraduation: boolean;
   graduationFeeBps: bigint;
   graduationFeeSplits: FeeSplit[];
@@ -80,6 +81,7 @@ export interface LaunchTokenParams {
     numSteps: string;
     stepSize: string;
   };
+  allowAutoGraduation: boolean;
   allowForcedGraduation: boolean;
   graduationFeeBps: string;
   graduationFeeSplits: FeeSplit[];
