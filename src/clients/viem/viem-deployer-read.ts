@@ -163,7 +163,7 @@ export class ViemDeployerReader {
     }
   }
 
-  async getTokenPrice(token: `0x${string}`): Promise<number> {
+  async getTokenPrice(token: Address): Promise<number> {
     return Number(await this.callDeployer("getTokenPrice", [token])) / 10 ** 36;
   }
 

@@ -1,5 +1,5 @@
 import { Log as EthersLog, Interface } from "ethers";
-import { Log as ViemLog } from "viem";
+import { Address, Log as ViemLog } from "viem";
 import { STATEMANAGER_ABI } from "../abis/statemanager-abi";
 import { randomBytes } from "crypto";
 
@@ -34,6 +34,10 @@ export function extractEventArgument({
   return null;
 }
 
-export function generateSalt(): string {
-  return "0x" + randomBytes(32).toString("hex"); // 32 bytes = 64 hex chars
+export function generateSalt(): Address {
+  const array = crypto.getRandomValues(new Uint8Array(32));
+  return ("0x" +
+    Array.from(array)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")) as Address;
 }
