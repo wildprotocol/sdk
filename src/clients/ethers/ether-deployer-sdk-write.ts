@@ -12,6 +12,7 @@ import {
   LaunchTokenParams,
   TokenDeploymentConfig,
   Address,
+  SwapTokenResult,
 } from "../../types";
 import { CONTRACTS } from "../../config";
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
@@ -65,7 +66,7 @@ export class DeployerWriter {
   async buyToken(
     params: BuyTokenParams,
     options?: TransactionOptions
-  ): Promise<ContractTransactionResponse> {
+  ): Promise<SwapTokenResult> {
     if (!this.signer)
       throw new Error("Signer is required for buy transactions");
 
@@ -77,13 +78,24 @@ export class DeployerWriter {
     };
     if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
 
-    return await this.contract.buyToken(
+    const tx = await this.contract.buyToken(
       params.token,
       parseEther(params.amountIn),
       parseEther(params.amountOutMin),
       params.to,
       txOptions
     );
+
+    const receipt = await tx.wait();
+    if (receipt.status !== 1) {
+      throw new Error(`Transaction failed: ${receipt.transactionHash}`);
+    }
+    console.log("Buy transaction confirmed:", receipt.transactionHash);
+    return {
+      success: receipt.status === 1,
+      transactionHash: receipt.hash,
+      receipt: receipt,
+    };
   }
 
   /**
@@ -95,7 +107,7 @@ export class DeployerWriter {
   async sellToken(
     params: SellTokenParams,
     options?: TransactionOptions
-  ): Promise<ContractTransactionResponse> {
+  ): Promise<SwapTokenResult> {
     if (!this.signer)
       throw new Error("Signer is required for sell transactions");
 
@@ -104,13 +116,25 @@ export class DeployerWriter {
     };
     if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
 
-    return await this.contract.sellToken(
+    const sellTx = await this.contract.sellToken(
       params.token,
       parseEther(params.amountIn),
       parseEther(params.amountOutMin),
       params.to,
       txOptions
     );
+
+    const receipt = await sellTx.wait();
+
+    if (receipt.status !== 1) {
+      throw new Error(`Transaction failed: ${receipt.transactionHash}`);
+    }
+    console.log("Buy transaction confirmed:", receipt.transactionHash);
+    return {
+      success: receipt.status,
+      transactionHash: receipt.hash,
+      receipt: receipt,
+    };
   }
 
   /**
@@ -152,7 +176,7 @@ export class DeployerWriter {
   async approveAndSell(
     params: SellTokenParams,
     options?: TransactionOptions
-  ): Promise<ContractTransactionResponse> {
+  ): Promise<SwapTokenResult> {
     if (!this.signer)
       throw new Error("Signer is required for approve and sell transactions");
 

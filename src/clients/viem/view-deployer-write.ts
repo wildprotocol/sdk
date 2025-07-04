@@ -70,7 +70,7 @@ export class ViemDeployerWriter {
   }
 
   async buyToken(params: BuyTokenParams, options?: TransactionOptions) {
-    const tx = await this.walletClient.writeContract({
+    const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
       functionName: "buyToken",
@@ -83,11 +83,20 @@ export class ViemDeployerWriter {
       value: parseEther(params.value || params.amountIn),
       ...this.buildTxOptions(options),
     });
-    return tx;
+
+    const receipt = await waitForTransactionReceipt(this.publicClient, {
+      hash,
+    });
+
+    return {
+      hash,
+      success: receipt.status === "success",
+      receipt,
+    };
   }
 
   async sellToken(params: SellTokenParams, options?: TransactionOptions) {
-    const tx = await this.walletClient.writeContract({
+    const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
       functionName: "sellToken",
@@ -100,7 +109,15 @@ export class ViemDeployerWriter {
       ...this.buildTxOptions(options),
     });
 
-    return tx;
+    const receipt = await waitForTransactionReceipt(this.publicClient, {
+      hash,
+    });
+
+    return {
+      hash,
+      success: receipt.status === "success",
+      receipt,
+    };
   }
 
   async approveToken(
@@ -134,12 +151,16 @@ export class ViemDeployerWriter {
 
   async approveAndSell(params: SellTokenParams, options?: TransactionOptions) {
     await this.approveToken(params.token, params.amountIn, options);
-    console.log("Approval successful");
+    console.log("✅ Approval successful");
 
-    const txHash = await this.sellToken(params, options);
-    console.log("Sell transaction sent:", txHash);
+    const result = await this.sellToken(params, options);
+    console.log("📤 Sell transaction sent:", result.hash);
 
-    return txHash;
+    return {
+      hash: result.hash,
+      success: result.success,
+      receipt: result.receipt,
+    };
   }
 
   async claimFee(token: string, options?: TransactionOptions) {
@@ -211,7 +232,7 @@ export class ViemDeployerWriter {
     allowPreGraduation: boolean = false,
     options?: TransactionOptions
   ) {
-    const tx = await this.walletClient.writeContract({
+    const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
       functionName: "graduateToken",
@@ -219,7 +240,21 @@ export class ViemDeployerWriter {
       ...this.buildTxOptions(options),
     });
 
-    return tx;
+    const receipt = await waitForTransactionReceipt(this.publicClient, {
+      hash,
+    });
+
+    if (receipt.status === "success") {
+      return {
+        success: true,
+        receipt,
+      };
+    } else {
+      return {
+        success: false,
+        receipt,
+      };
+    }
   }
 
   async setBaseTokenWhitelist(
