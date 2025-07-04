@@ -1,175 +1,319 @@
 export const LP_LOCKER_ABI = [
   {
-    inputs: [
-      { internalType: "address", name: "_positionManager", type: "address" },
-      { internalType: "address", name: "_stateView", type: "address" },
-      { internalType: "address", name: "_owner", type: "address" },
-    ],
-    stateMutability: "nonpayable",
     type: "constructor",
-  },
-  {
-    inputs: [{ internalType: "address", name: "owner", type: "address" }],
-    name: "OwnableInvalidOwner",
-    type: "error",
-  },
-  {
-    inputs: [{ internalType: "address", name: "account", type: "address" }],
-    name: "OwnableUnauthorizedAccount",
-    type: "error",
-  },
-  { inputs: [], name: "TokenNotSet", type: "error" },
-  {
-    anonymous: false,
     inputs: [
       {
-        indexed: true,
-        internalType: "address",
-        name: "previousOwner",
+        name: "_positionManager",
         type: "address",
+        internalType: "address",
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "newOwner",
+        name: "_stateView",
         type: "address",
+        internalType: "address",
+      },
+      {
+        name: "_owner",
+        type: "address",
+        internalType: "address",
       },
     ],
-    name: "OwnershipTransferStarted",
-    type: "event",
+    stateMutability: "nonpayable",
   },
   {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "previousOwner",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "newOwner",
-        type: "address",
-      },
-    ],
-    name: "OwnershipTransferred",
-    type: "event",
-  },
-  {
-    inputs: [],
+    type: "function",
     name: "acceptOwnership",
+    inputs: [],
     outputs: [],
     stateMutability: "nonpayable",
-    type: "function",
   },
   {
-    inputs: [{ internalType: "address", name: "token", type: "address" }],
+    type: "function",
     name: "collectFees",
-    outputs: [
-      { internalType: "uint256", name: "baseTokenFee", type: "uint256" },
-      { internalType: "uint256", name: "tokenFee", type: "uint256" },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "token", type: "address" }],
-    name: "computeUnclaimedFees",
-    outputs: [
-      { internalType: "uint256", name: "fee0", type: "uint256" },
-      { internalType: "uint256", name: "fee1", type: "uint256" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "token", type: "address" }],
-    name: "getSqrtPriceX96",
-    outputs: [{ internalType: "uint160", name: "", type: "uint160" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "token", type: "address" }],
-    name: "getTokenParams",
-    outputs: [
-      { internalType: "uint256", name: "poolTokenId", type: "uint256" },
-      { internalType: "address", name: "baseToken", type: "address" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "owner",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "pendingOwner",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "positionManager",
-    outputs: [
-      { internalType: "contract IPositionManager", name: "", type: "address" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "renounceOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
     inputs: [
-      { internalType: "address", name: "token", type: "address" },
-      { internalType: "uint256", name: "poolTokenId", type: "uint256" },
-      { internalType: "address", name: "baseToken", type: "address" },
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    name: "setTokenParams",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "stateView",
     outputs: [
-      { internalType: "contract IStateView", name: "", type: "address" },
+      {
+        name: "baseTokenFee",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "tokenFee",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "computeUnclaimedFees",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "fee0",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "fee1",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
     stateMutability: "view",
-    type: "function",
   },
   {
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "tokenToBaseToken",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
+    type: "function",
+    name: "getSqrtPriceX96",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "uint160",
+        internalType: "uint160",
+      },
+    ],
     stateMutability: "view",
-    type: "function",
   },
   {
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "tokenToPoolTokenId",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    type: "function",
+    name: "getTokenParams",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "poolTokenId",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "baseToken",
+        type: "address",
+        internalType: "address",
+      },
+    ],
     stateMutability: "view",
-    type: "function",
   },
   {
-    inputs: [{ internalType: "address", name: "newOwner", type: "address" }],
-    name: "transferOwnership",
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "pendingOwner",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "positionManager",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract IPositionManager",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "renounceOwnership",
+    inputs: [],
     outputs: [],
     stateMutability: "nonpayable",
+  },
+  {
     type: "function",
+    name: "setTokenParams",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "poolTokenId",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "baseToken",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "stateView",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract IStateView",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "tokenToBaseToken",
+    inputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "tokenToPoolTokenId",
+    inputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "transferOwnership",
+    inputs: [
+      {
+        name: "newOwner",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "OwnershipTransferStarted",
+    inputs: [
+      {
+        name: "previousOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "newOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "OwnershipTransferred",
+    inputs: [
+      {
+        name: "previousOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "newOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "error",
+    name: "OwnableInvalidOwner",
+    inputs: [
+      {
+        name: "owner",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+  },
+  {
+    type: "error",
+    name: "OwnableUnauthorizedAccount",
+    inputs: [
+      {
+        name: "account",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+  },
+  {
+    type: "error",
+    name: "TokenNotSet",
+    inputs: [],
   },
 ] as const;
