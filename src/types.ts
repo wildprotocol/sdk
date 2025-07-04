@@ -1,3 +1,4 @@
+import { ContractTransactionReceipt } from "ethers";
 import type { EthersSDKConfig } from "./clients/ethers/types";
 import type { ViemSDKConfig } from "./clients/viem/types";
 
@@ -132,4 +133,10 @@ export type TokenState = {
   totalFees?: bigint;
   isGraduated: boolean;
   poolAddress: Address; // address of the pool
+};
+
+export type SwapTokenResult = {
+  success: boolean;
+  transactionHash: string;
+  receipt: ContractTransactionReceipt;
 };
