@@ -91,10 +91,11 @@ export function TradingViewChart({
         const query = new URLSearchParams({
           token_address: token,
           interval,
-          start_time: from ? from.toString() : "",
-          end_time: to ? to.toString() : "",
           chain_id: chain_id,
         });
+
+        if (from) query.set("start_time", from.toString());
+        if (to) query.set("end_time", to.toString());
 
         const res = await fetch(`${apiUrl}?${query}`);
         const json = await res.json();

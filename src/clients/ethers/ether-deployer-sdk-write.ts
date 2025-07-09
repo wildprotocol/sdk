@@ -282,8 +282,6 @@ export class DeployerWriter {
     validateFeeSplitArray(params.poolFeeSplits, "poolFeeSplits");
     validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
 
-    console.log("Launching token with parameters:", params);
-
     const config = this.buildTokenDeploymentConfig(params);
     const finalSalt = salt ?? generateSalt();
     validateSalt(finalSalt);

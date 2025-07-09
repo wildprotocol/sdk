@@ -20,7 +20,7 @@ export interface TokenDeploymentConfig {
   baseToken: Address; // address of the creator`;
   name: string;
   symbol: string;
-  image: string | File; // URL or File object for the token image
+  image: string; // URL
   appIdentifier: string;
   teamSupply: bigint;
   vestingStartTime: bigint;
@@ -67,7 +67,7 @@ export interface TransactionOptions {
 export interface LaunchTokenParams {
   name: string;
   symbol: string;
-  image: string | File;
+  image: string;
   creator: Address;
   baseToken: Address;
   totalSupply: string;
