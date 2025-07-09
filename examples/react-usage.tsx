@@ -1,16 +1,13 @@
 import React, { useState } from "react";
-import { privateKeyToAccount } from "viem/accounts";
 import { createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
-import { Address, useDeployerSDK } from "../src";
-import { waitForTransactionReceipt } from "viem/actions";
+import { Address } from "../src";
+import { useDeployerSDK } from "../src/react/index";
 
-const deployerContractAddress = "0x8e095febb45a3c852e81599fa9e155be83b67e2c";
-const amountETHToUseForBuy1 = "0.0000001";
-const amountTokensToSell = "770";
-const amountETHToUseForBuy2 = "0.000001";
-const protocolFeeRecipient = "0x1234567890123456789012345678901234567890";
-const testTokenAddress = "0x03DDCF4ab7bF145bCf221bE21c52c6b10C2A6BC5";
+const RECIPIENT = "0x0e3E591cdA42517D6DEd61D9DC3165AdDD179a8d";
+const CREATOR = "0x0e3E591cdA42517D6DEd61D9DC3165AdDD179a8d";
+const TEST_TOKEN_ADDRESS = "0x7a6fc57969035709a261c612dB698c29ca7B3DDb";
 
 const privateKey = process.env.PRIVATE_KEY as Address;
 
@@ -28,8 +25,6 @@ const walletClient = createWalletClient({
 const publicKey = account.address;
 
 export default function TokenDeployer() {
-  const randomNumber = Math.floor(Math.random() * 10000);
-
   const { sdk, isLoading, error } = useDeployerSDK({
     client: "viem",
     network: "base-mainnet",
@@ -48,117 +43,50 @@ export default function TokenDeployer() {
     try {
       setStatus("Checking whitelist...");
       const isWhitelisted = await sdk.read.isBaseTokenWhitelisted(
-        "0x0000000000000000000000000000000000000000"
+        "0x0000000000000000000000000000000000000000" // Base Token Address
       );
       console.log("ETH is whitelisted:", isWhitelisted);
 
       setStatus("Launching token...");
-      const launchTx = await sdk.write.launchToken({
-        name: `TT_${randomNumber}`,
-        symbol: `TTK_${randomNumber}`,
-        image: "https://example.com/image.png",
-        creator: publicKey,
-        baseToken: "0x0000000000000000000000000000000000000000",
-        teamSupply: "1000000000000000000000000",
-        totalSupply: "10000000000000000000000000",
-        bondingCurveSupply: "5000000000000000000000",
-        liquidityPoolSupply: "995000000000000000000000",
-        bondingCurveBuyFee: "250",
-        bondingCurveSellFee: "250",
-        bondingCurveFeeSplits: [
-          { recipient: publicKey, bps: BigInt(9500) },
-          { recipient: protocolFeeRecipient, bps: BigInt(500) },
-        ],
-        bondingCurveParams: {
-          prices: [
-            "110000000",
-            "120000000",
-            "130000000",
-            "140000000",
-            "150000000",
-            "160000000",
-            "170000000",
-            "180000000",
-            "190000000",
-            "200000000",
-          ],
-          numSteps: "10",
-          stepSize: "500000000000000000000",
-        },
-        allowForcedGraduation: false,
-        graduationFeeBps: "0",
-        graduationFeeSplits: [],
-        poolFees: 3000,
-        poolFeeSplits: [
-          { recipient: publicKey, bps: BigInt(9500) },
-          { recipient: protocolFeeRecipient, bps: BigInt(500) }, // this is the protocol fee recipient, Dont need to add this, it will be added automatically
-        ],
-        surgeFeeDuration: "900",
-        maxSurgeFeeBps: "1000",
-        protocolFeeBps: 500,
-      });
-      console.log("Launch Token:", launchTx);
+      const launchTx = await sdk.write.launchToken(tokenParams); // Launch the token
+      console.log("✅ Token launched successfully!");
+      console.log("Transaction hash:", launchTx.tx);
+      console.log("Token address:", launchTx.createdTokenAddress);
 
       setStatus("Getting buy quote...");
       const buyQuote = await sdk.read.getBuyQuote(
-        testTokenAddress,
-        amountETHToUseForBuy1
+        TEST_TOKEN_ADDRESS,
+        "0.001" // Amount in ETH to buy
       );
       console.log("Buy Quote:", buyQuote);
 
       setStatus("Buying tokens...");
       const buyTx = await sdk.write.buyToken({
-        token: testTokenAddress,
-        amountIn: amountETHToUseForBuy1,
+        token: TEST_TOKEN_ADDRESS,
+        amountIn: "0.001", // Amount in ETH to buy,
         amountOutMin: "0",
         to: publicKey,
-        value: amountETHToUseForBuy1,
+        value: "0.001", // Amount in ETH to buy,
       });
-      console.log("Buy transaction hash:", buyTx.transactionHash);
-      const receipt = await waitForTransactionReceipt(walletClient, {
-        hash: buyTx.transactionHash,
-      });
-      console.log("Buy transaction receipt:", receipt);
+      console.log("Buy transaction hash:", buyTx.hash);
+      console.log("Buy transaction hash receipt:", buyTx.receipt);
 
       setStatus("Getting sell quote...");
-      const sellQuote = await sdk.read.getSellQuote(
-        testTokenAddress,
-        amountTokensToSell
-      );
+      const sellQuote = await sdk.read.getSellQuote(TEST_TOKEN_ADDRESS, "10");
       console.log("Sell Quote:", sellQuote);
 
       setStatus("Selling tokens...");
       const sellTx = await sdk.write.approveAndSell({
-        token: testTokenAddress,
-        amountIn: amountTokensToSell,
+        token: TEST_TOKEN_ADDRESS,
+        amountIn: "10",
         amountOutMin: "0",
         to: publicKey,
       });
       console.log("Sell transaction hash:", sellTx.hash);
 
       setStatus("Claiming fees...");
-      const claimTx = await sdk.write.claimFee(testTokenAddress);
-      console.log("Claim transaction hash:", claimTx.hash);
-
-      setStatus("Buying more tokens...");
-      const buyQuote2 = await sdk.read.getBuyQuote(
-        testTokenAddress,
-        amountETHToUseForBuy2
-      );
-      console.log("Buy Quote:", buyQuote2);
-
-      const buyTx2 = await sdk.write.buyToken({
-        token: testTokenAddress,
-        amountIn: amountETHToUseForBuy2,
-        amountOutMin: "0",
-        to: publicKey,
-        value: amountETHToUseForBuy2,
-      });
-      console.log("Buy transaction hash:", buyTx2.transactionHash);
-
-      setStatus("Graduating token...");
-      const graduateTx = await sdk.write.graduateToken(testTokenAddress, true);
-      console.log("Graduate transaction hash:", graduateTx.hash);
+      const claimTx = await sdk.write.claimFee(TEST_TOKEN_ADDRESS);
+      console.log("Claim transaction hash:", claimTx);
 
       setStatus("Completed!");
     } catch (err) {
@@ -179,3 +107,57 @@ export default function TokenDeployer() {
     </div>
   );
 }
+
+const stepCount = 5;
+const totalBondingCurveTokens = 1_000_000n * 10n ** 18n;
+const stepSize = (totalBondingCurveTokens / BigInt(stepCount)).toString();
+const numSteps = stepCount.toString();
+const prices = Array.from({ length: stepCount }, (_, i) =>
+  (BigInt(i + 1) * 10n ** 24n).toString()
+);
+
+const tokenParams = {
+  creator: CREATOR as Address,
+  baseToken: "0x0000000000000000000000000000000000000000" as Address,
+  name: "Alpha Token",
+  symbol: "ALPT",
+  image: "https://example.com/token.png",
+  teamSupply: "100000000000000000000000",
+  bondingCurveSupply: "1000000000000000000000000",
+  liquidityPoolSupply: "1000000000000000000000000",
+  totalSupply: "2100000000000000000000000",
+  bondingCurveBuyFee: "100",
+  bondingCurveSellFee: "100",
+  allowForcedGraduation: false,
+  graduationFeeBps: "100",
+  poolFees: 20000,
+  surgeFeeStartingTime: "1750410342",
+  surgeFeeDuration: "86400",
+  maxSurgeFeeBps: "1000",
+  bondingCurveFeeSplits: [{ recipient: RECIPIENT as Address, bps: 1000n }],
+  graduationFeeSplits: [
+    { recipient: RECIPIENT as Address, bps: 9500n },
+    {
+      recipient: "0x136F342DBC00Dc105B23ecC40b1134830720f721" as Address,
+      bps: 500n,
+    },
+  ],
+  poolFeeSplits: [
+    { recipient: RECIPIENT as Address, bps: 9500n },
+    {
+      recipient: "0x136F342DBC00Dc105B23ecC40b1134830720f721" as Address,
+      bps: 500n,
+    },
+  ],
+  bondingCurveParams: {
+    prices,
+    numSteps,
+    stepSize,
+  },
+  vestingStartTime: "0",
+  vestingDuration: "0",
+  vestingWallet: "0x0000000000000000000000000000000000000000" as Address,
+  appIdentifier: "AlphaTokenExample",
+  protocolFeeBps: 500,
+  allowAutoGraduation: false,
+};

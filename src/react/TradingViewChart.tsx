@@ -21,8 +21,8 @@ import {
 type TradingViewChartProps = {
   token: string;
   interval: "1m" | "5m" | "15m" | "1h" | "4h" | "1d" | "1w" | "1M" | "1y";
-  from: number;
-  to: number;
+  from?: number;
+  to?: number;
   chain_id: string;
   apiUrl?: string;
   useMockIfEmpty?: boolean;
@@ -91,8 +91,8 @@ export function TradingViewChart({
         const query = new URLSearchParams({
           token_address: token,
           interval,
-          start_time: from.toString(),
-          end_time: to.toString(),
+          start_time: from ? from.toString() : "",
+          end_time: to ? to.toString() : "",
           chain_id: chain_id,
         });
 

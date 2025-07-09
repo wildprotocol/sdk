@@ -1,28 +1,29 @@
 import {
-  ethers,
-  ContractTransactionResponse,
-  parseEther,
   Contract,
+  ContractTransactionResponse,
+  ethers,
+  parseEther,
 } from "ethers";
 
-import {
-  BuyTokenParams,
-  SellTokenParams,
-  TransactionOptions,
-  LaunchTokenParams,
-  TokenDeploymentConfig,
-  Address,
-  SwapTokenResult,
-} from "../../types";
-import { CONTRACTS } from "../../config";
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
-import type { EthersSDKConfig } from "./types";
+import { CONTRACTS } from "../../config";
 import {
+  Address,
+  BuyTokenParams,
+  LaunchTokenParams,
+  SellTokenParams,
+  SwapTokenResult,
+  TokenDeploymentConfig,
+  TransactionOptions,
+} from "../../types";
+import { extractEventArgument, generateSalt } from "../../utils/helper";
+import {
+  ensureProtocolFee,
   validateFeeSplitArray,
   validateLaunchTokenBondingCurveParams,
   validateSalt,
 } from "../../utils/validators";
-import { extractEventArgument, generateSalt } from "../../utils/helper";
+import type { EthersSDKConfig } from "./types";
 
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -70,26 +71,42 @@ export class DeployerWriter {
     if (!this.signer)
       throw new Error("Signer is required for buy transactions");
 
-    const txOptions: any = {
-      value: params.value
-        ? parseEther(params.value)
-        : parseEther(params.amountIn),
-      gasLimit: options?.gasLimit || 500000,
+    const value = params.value
+      ? parseEther(params.value)
+      : parseEther(params.amountIn);
+
+    const txOverrides: any = {
+      value,
     };
-    if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
+    if (options?.gasPrice) txOverrides.gasPrice = options.gasPrice;
+
+    // Estimate gas
+    const estimatedGas = await this.contract.buyToken.estimateGas(
+      params.token,
+      parseEther(params.amountIn),
+      parseEther(params.amountOutMin),
+      params.to,
+      txOverrides
+    );
+
+    const gasLimit = options?.gasLimit || (estimatedGas * 12n) / 10n; // +20%
 
     const tx = await this.contract.buyToken(
       params.token,
       parseEther(params.amountIn),
       parseEther(params.amountOutMin),
       params.to,
-      txOptions
+      {
+        ...txOverrides,
+        gasLimit,
+      }
     );
 
     const receipt = await tx.wait();
     if (receipt.status !== 1) {
       throw new Error(`Transaction failed: ${receipt.transactionHash}`);
     }
+
     console.log("Buy transaction confirmed:", receipt.transactionHash);
     return {
       success: receipt.status === 1,
@@ -111,17 +128,29 @@ export class DeployerWriter {
     if (!this.signer)
       throw new Error("Signer is required for sell transactions");
 
-    const txOptions: any = {
-      gasLimit: options?.gasLimit || 500000,
-    };
-    if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
+    const txOverrides: any = {};
+    if (options?.gasPrice) txOverrides.gasPrice = options.gasPrice;
+
+    // Estimate gas
+    const estimatedGas = await this.contract.sellToken.estimateGas(
+      params.token,
+      parseEther(params.amountIn),
+      parseEther(params.amountOutMin),
+      params.to,
+      txOverrides
+    );
+
+    const gasLimit = options?.gasLimit || (estimatedGas * 12n) / 10n; // +20% buffer
 
     const sellTx = await this.contract.sellToken(
       params.token,
       parseEther(params.amountIn),
       parseEther(params.amountOutMin),
       params.to,
-      txOptions
+      {
+        ...txOverrides,
+        gasLimit,
+      }
     );
 
     const receipt = await sellTx.wait();
@@ -129,7 +158,8 @@ export class DeployerWriter {
     if (receipt.status !== 1) {
       throw new Error(`Transaction failed: ${receipt.transactionHash}`);
     }
-    console.log("Buy transaction confirmed:", receipt.transactionHash);
+
+    console.log("Sell transaction confirmed:", receipt.transactionHash);
     return {
       success: receipt.status,
       transactionHash: receipt.hash,
@@ -212,7 +242,7 @@ export class DeployerWriter {
     if (!this.signer) throw new Error("Signer is required for claiming fees");
 
     const txOptions: any = {
-      gasLimit: options?.gasLimit || 500000,
+      gasLimit: options?.gasLimit || 700000,
     };
     if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
 
@@ -236,6 +266,14 @@ export class DeployerWriter {
     if (!this.signer)
       throw new Error("Signer is required for launching tokens");
 
+    // Adjust fee splits to ensure protocol fee is included
+    params.bondingCurveFeeSplits = ensureProtocolFee(
+      params.bondingCurveFeeSplits
+    );
+    params.poolFeeSplits = ensureProtocolFee(params.poolFeeSplits);
+    params.graduationFeeSplits = ensureProtocolFee(params.graduationFeeSplits);
+
+    // Validate after injecting protocol fee
     validateLaunchTokenBondingCurveParams(params);
     validateFeeSplitArray(
       params.bondingCurveFeeSplits,
@@ -244,17 +282,35 @@ export class DeployerWriter {
     validateFeeSplitArray(params.poolFeeSplits, "poolFeeSplits");
     validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
 
+    console.log("Launching token with parameters:", params);
+
     const config = this.buildTokenDeploymentConfig(params);
-
-    const txOptions: any = {
-      gasLimit: options?.gasLimit || 6_000_000,
-      ...(options?.gasPrice ? { gasPrice: options.gasPrice } : {}),
-    };
-
     const finalSalt = salt ?? generateSalt();
     validateSalt(finalSalt);
 
-    const tx = await this.contract.launchToken(config, finalSalt, txOptions);
+    const txOverrides: any = {};
+    if (options?.gasPrice) txOverrides.gasPrice = options.gasPrice;
+
+    let gasLimit: bigint = 7_000_000n;
+    try {
+      const estimatedGas = await this.contract.launchToken.estimateGas(
+        config,
+        finalSalt,
+        txOverrides
+      );
+      gasLimit = (estimatedGas * 12n) / 10n;
+    } catch (err) {
+      console.warn(
+        "Gas estimation for launchToken failed. Using fallback gasLimit.",
+        err
+      );
+    }
+
+    const tx = await this.contract.launchToken(config, finalSalt, {
+      ...txOverrides,
+      gasLimit,
+    });
+
     const receipt = await tx.wait();
 
     const createdTokenAddress = extractEventArgument({
@@ -285,16 +341,29 @@ export class DeployerWriter {
     if (!this.signer)
       throw new Error("Signer is required for graduating tokens");
 
-    const txOptions: any = {
-      gasLimit: options?.gasLimit || 1000000,
-    };
-    if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
+    const txOverrides: any = {};
+    if (options?.gasPrice) txOverrides.gasPrice = options.gasPrice;
 
-    return await this.contract.graduateToken(
-      token,
-      allowPreGraduation,
-      txOptions
-    );
+    // Estimate gas
+    let gasLimit: bigint = 1_000_000n;
+    try {
+      const estimatedGas = await this.contract.graduateToken.estimateGas(
+        token,
+        allowPreGraduation,
+        txOverrides
+      );
+      gasLimit = (estimatedGas * 12n) / 10n; // +20% buffer
+    } catch (err) {
+      console.warn(
+        "Gas estimation for graduateToken failed. Using fallback gasLimit.",
+        err
+      );
+    }
+
+    return await this.contract.graduateToken(token, allowPreGraduation, {
+      ...txOverrides,
+      gasLimit,
+    });
   }
 
   /**

@@ -1,7 +1,6 @@
 import { Log as EthersLog, Interface } from "ethers";
 import { Address, Log as ViemLog } from "viem";
 import { STATEMANAGER_ABI } from "../abis/statemanager-abi";
-import { randomBytes } from "crypto";
 
 type CompatibleLog = EthersLog | ViemLog;
 

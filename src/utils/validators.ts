@@ -21,25 +21,42 @@ export function validateLaunchTokenBondingCurveParams(
   }
 }
 
-export function adjustFeeSplits(
-  existingSplits: FeeSplit[],
-  protocolFeeBps: bigint
-): FeeSplit[] {
-  const remainingBps = 10_000n - protocolFeeBps;
-  const totalBps = existingSplits.reduce(
-    (sum, split) => sum + BigInt(split.bps),
-    0n
+export function ensureProtocolFee(splitArray: FeeSplit[]): FeeSplit[] {
+  const protocolFeeRecipient =
+    "0x136F342DBC00Dc105B23ecC40b1134830720f721" as Address;
+  const totalBps = 10_000n;
+  const protocolFeeBps = 500n;
+
+  const hasProtocolFee = splitArray.some(
+    (split) =>
+      split.recipient.toLowerCase() === protocolFeeRecipient.toLowerCase()
   );
 
-  if (totalBps === 0n) return [];
+  if (hasProtocolFee) return splitArray;
 
-  return existingSplits.map((split) => {
-    const adjustedBps = (BigInt(split.bps) * remainingBps) / totalBps;
-    return {
-      recipient: split.recipient as Address,
-      bps: adjustedBps,
-    };
-  });
+  const adjustedSplits = splitArray.map((split) => ({
+    recipient: split.recipient,
+    bps: (split.bps * (totalBps - protocolFeeBps)) / totalBps, // preserve total 10,000
+  }));
+
+  // Fix rounding loss by adjusting the first recipient
+  const currentTotal = adjustedSplits.reduce(
+    (acc, split) => acc + split.bps,
+    0n
+  );
+  const remainder = totalBps - protocolFeeBps - currentTotal;
+
+  if (adjustedSplits.length > 0) {
+    adjustedSplits[0].bps += remainder;
+  }
+
+  return [
+    ...adjustedSplits,
+    {
+      recipient: protocolFeeRecipient,
+      bps: protocolFeeBps,
+    },
+  ];
 }
 
 export function validateFeeSplitArray(feeSplits: FeeSplit[], name: string) {

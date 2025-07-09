@@ -1,6 +1,6 @@
 import { createPublicClient, createWalletClient, http, parseEther } from "viem";
-import { base, baseSepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { base, baseSepolia } from "viem/chains";
 
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
 import { CONTRACTS } from "../../config";
@@ -13,15 +13,16 @@ import {
   TransactionOptions,
 } from "../../types";
 
+import type { WalletClient } from "viem";
 import { waitForTransactionReceipt } from "viem/actions";
+import { extractEventArgument, generateSalt } from "../../utils/helper";
 import {
+  ensureProtocolFee,
   validateFeeSplitArray,
   validateLaunchTokenBondingCurveParams,
   validateSalt,
 } from "../../utils/validators";
 import type { ViemSDKConfig } from "./types";
-import { extractEventArgument, generateSalt } from "../../utils/helper";
-import type { WalletClient } from "viem";
 
 export class ViemDeployerWriter {
   protected config: ViemSDKConfig;
@@ -70,18 +71,42 @@ export class ViemDeployerWriter {
   }
 
   async buyToken(params: BuyTokenParams, options?: TransactionOptions) {
+    const args = [
+      params.token as Address,
+      parseEther(params.amountIn),
+      parseEther(params.amountOutMin),
+      params.to as Address,
+    ];
+
+    const value = parseEther(params.value || params.amountIn);
+    const overrides = {
+      value,
+      ...this.buildTxOptions(options),
+    };
+
+    let gasPrice: bigint | undefined;
+    try {
+      gasPrice = await this.publicClient.estimateGas({
+        account: this.walletClient.account?.address as Address,
+        address: this.deployerAddress,
+        abi: DEPLOYER_ABI,
+        functionName: "buyToken",
+        args,
+        ...overrides,
+      });
+      gasPrice = (gasPrice * 12n) / 10n; // +20% buffer
+    } catch (err) {
+      console.warn("Gas estimation failed, proceeding without it.", err);
+      gasPrice = undefined; // allow `writeContract` to auto-estimate
+    }
+
     const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
       functionName: "buyToken",
-      args: [
-        params.token as `0x${string}`,
-        parseEther(params.amountIn),
-        parseEther(params.amountOutMin),
-        params.to as `0x${string}`,
-      ],
-      value: parseEther(params.value || params.amountIn),
-      ...this.buildTxOptions(options),
+      args,
+      ...overrides,
+      gasPrice,
     });
 
     const receipt = await waitForTransactionReceipt(this.publicClient, {
@@ -90,23 +115,55 @@ export class ViemDeployerWriter {
 
     return {
       hash,
-      success: receipt.status === "success",
+      success: receipt.status,
       receipt,
     };
   }
 
   async sellToken(params: SellTokenParams, options?: TransactionOptions) {
+    const args = [
+      params.token as Address,
+      parseEther(params.amountIn),
+      parseEther(params.amountOutMin),
+      params.to as Address,
+    ];
+
+    const txOverrides = {
+      ...this.buildTxOptions(options),
+    };
+
+    let gasPrice: bigint | undefined;
+
+    if (options?.gasPrice) {
+      gasPrice = options.gasPrice;
+    } else {
+      try {
+        gasPrice = await this.publicClient.estimateGas({
+          account: this.walletClient.account?.address as Address,
+          address: this.deployerAddress,
+          abi: DEPLOYER_ABI,
+          functionName: "sellToken",
+          args,
+          ...txOverrides,
+        });
+
+        gasPrice = (gasPrice * 12n) / 10n; // +20% buffer
+      } catch (err) {
+        console.warn(
+          "Gas estimation failed for sellToken. Using fallback.",
+          err
+        );
+        gasPrice = undefined; // let writeContract handle it
+      }
+    }
+
     const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
       functionName: "sellToken",
-      args: [
-        params.token as `0x${string}`,
-        parseEther(params.amountIn),
-        parseEther(params.amountOutMin),
-        params.to as `0x${string}`,
-      ],
-      ...this.buildTxOptions(options),
+      args,
+      ...txOverrides,
+      gasPrice,
     });
 
     const receipt = await waitForTransactionReceipt(this.publicClient, {
@@ -184,11 +241,18 @@ export class ViemDeployerWriter {
    * Required. This fee will automatically be allocated to the protocol.
    * Example: 500 = 5%
    */
+
   async launchToken(
     params: LaunchTokenParams,
     salt?: string,
     options?: TransactionOptions
   ) {
+    params.bondingCurveFeeSplits = ensureProtocolFee(
+      params.bondingCurveFeeSplits
+    );
+    params.poolFeeSplits = ensureProtocolFee(params.poolFeeSplits);
+    params.graduationFeeSplits = ensureProtocolFee(params.graduationFeeSplits);
+
     validateLaunchTokenBondingCurveParams(params);
     validateFeeSplitArray(
       params.bondingCurveFeeSplits,
@@ -198,22 +262,48 @@ export class ViemDeployerWriter {
     validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
 
     const config = this.buildTokenDeploymentConfig(params);
-
     const finalSalt = salt ?? generateSalt();
     validateSalt(finalSalt);
 
     const args = [config, finalSalt] as const;
+    const txOverrides = this.buildTxOptions(options);
 
-    const tx = await this.walletClient.writeContract({
+    let gasPrice: bigint | undefined;
+
+    if (options?.gasPrice) {
+      gasPrice = options.gasPrice;
+    } else {
+      try {
+        gasPrice = await this.publicClient.estimateGas({
+          account: this.walletClient.account?.address as Address,
+          address: this.deployerAddress,
+          abi: DEPLOYER_ABI,
+          functionName: "launchToken",
+          args,
+          ...txOverrides,
+        });
+
+        gasPrice = (gasPrice * 12n) / 10n; // +20% buffer
+      } catch (err) {
+        console.warn(
+          "Gas estimation failed for launchToken. Using fallback.",
+          err
+        );
+        gasPrice = undefined;
+      }
+    }
+
+    const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
       functionName: "launchToken",
       args,
-      ...this.buildTxOptions(options),
+      ...txOverrides,
+      gasPrice,
     });
 
     const receipt = await waitForTransactionReceipt(this.walletClient, {
-      hash: tx,
+      hash,
     });
 
     const createdTokenAddress = extractEventArgument({
@@ -222,9 +312,11 @@ export class ViemDeployerWriter {
       argumentName: "token",
     });
 
-    if (!createdTokenAddress) throw new Error("TokenLaunched event not found");
+    if (!createdTokenAddress) {
+      throw new Error("TokenLaunched event not found");
+    }
 
-    return { tx, createdTokenAddress };
+    return { tx: hash, createdTokenAddress };
   }
 
   async graduateToken(
@@ -232,29 +324,51 @@ export class ViemDeployerWriter {
     allowPreGraduation: boolean = false,
     options?: TransactionOptions
   ) {
+    const args = [token as Address, allowPreGraduation];
+    const txOverrides = this.buildTxOptions(options);
+
+    let gasPrice: bigint | undefined;
+
+    if (options?.gasPrice) {
+      gasPrice = options.gasPrice;
+    } else {
+      try {
+        gasPrice = await this.publicClient.estimateGas({
+          account: this.walletClient.account?.address as Address,
+          address: this.deployerAddress,
+          abi: DEPLOYER_ABI,
+          functionName: "graduateToken",
+          args,
+          ...txOverrides,
+        });
+
+        gasPrice = (gasPrice * 12n) / 10n; // +20% buffer
+      } catch (err) {
+        console.warn(
+          "Gas estimation failed for graduateToken. Proceeding without explicit gas.",
+          err
+        );
+        gasPrice = undefined;
+      }
+    }
+
     const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
       functionName: "graduateToken",
-      args: [token as `0x${string}`, allowPreGraduation],
-      ...this.buildTxOptions(options),
+      args,
+      ...txOverrides,
+      gasPrice,
     });
 
     const receipt = await waitForTransactionReceipt(this.publicClient, {
       hash,
     });
 
-    if (receipt.status === "success") {
-      return {
-        success: true,
-        receipt,
-      };
-    } else {
-      return {
-        success: false,
-        receipt,
-      };
-    }
+    return {
+      success: receipt.status === "success",
+      receipt,
+    };
   }
 
   async setBaseTokenWhitelist(

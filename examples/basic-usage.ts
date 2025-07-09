@@ -1,167 +1,142 @@
-import { ethers, Wallet } from "ethers";
-import { Address, DeployerSDK } from "../src";
+import { Address } from "viem";
+import { EthersDeployer } from "../src/clients/ethers";
 
-// Read private key from .env
-const privateKey = process.env.PRIVATE_KEY;
+// Replace with your actual private key and recipient
+const PRIVATE_KEY = "0xYOUR_PRIVATE_KEY_HERE";
+const RECIPIENT = "0x0e3E591cdA42517D6DEd61D9DC3165AdDD179a8d";
+const CREATOR = "0x0e3E591cdA42517D6DEd61D9DC3165AdDD179a8d";
+const TEST_TOKEN_ADDRESS = "0x7a6fc57969035709a261c612dB698c29ca7B3DDb";
 
-if (!privateKey) {
-  throw new Error("PRIVATE_KEY is not set");
-}
+const rpcUrl = "https://sepolia.base.org";
 
-const publicKey = new Wallet(privateKey).address;
-console.log("Public key:", publicKey);
+// --- Bonding Curve Setup ---
+const stepCount = 5;
+const totalBondingCurveTokens = 1_000_000n * 10n ** 18n;
+const stepSize = (totalBondingCurveTokens / BigInt(stepCount)).toString();
+const numSteps = stepCount.toString();
+const prices = Array.from({ length: stepCount }, (_, i) =>
+  (BigInt(i + 1) * 10n ** 24n).toString()
+);
 
-const rpcUrl = "https://mainnet.base.org";
-const provider = new ethers.JsonRpcProvider(rpcUrl);
-const signer = new Wallet(privateKey, provider);
-
-// Constant setup
-const amountETHToUseForBuy1 = "0.0000001";
-const amountTokensToSell = "770";
-const amountETHToUseForBuy2 = "0.000001";
-const protocolFeeRecipient = "0x1234567890123456789012345678901234567890";
-const testTokenAddress = "0x03DDCF4ab7bF145bCf221bE21c52c6b10C2A6BC5";
-const randomNumber = String(Math.floor(Math.random() * 10000));
+// --- LaunchToken Configuration ---
+const tokenParams = {
+  creator: RECIPIENT as Address,
+  baseToken: "0x0000000000000000000000000000000000000000" as Address,
+  name: "Alpha Token",
+  symbol: "ALPT",
+  image: "https://example.com/token.png",
+  teamSupply: "100000000000000000000000", // 100,000 tokens
+  bondingCurveSupply: "1000000000000000000000000",
+  liquidityPoolSupply: "1000000000000000000000000",
+  totalSupply: "2100000000000000000000000",
+  bondingCurveBuyFee: "100", // 1%
+  bondingCurveSellFee: "100", // 1%
+  allowForcedGraduation: false,
+  graduationFeeBps: "100", // 1%
+  poolFees: 20000, // 2%
+  surgeFeeStartingTime: "1750410342",
+  surgeFeeDuration: "86400",
+  maxSurgeFeeBps: "1000",
+  bondingCurveFeeSplits: [{ recipient: RECIPIENT as Address, bps: 1000n }],
+  graduationFeeSplits: [
+    { recipient: RECIPIENT as Address, bps: 9500n },
+    {
+      recipient: "0x136F342DBC00Dc105B23ecC40b1134830720f721" as Address,
+      bps: 500n,
+    },
+  ],
+  poolFeeSplits: [
+    { recipient: RECIPIENT as Address, bps: 9500n },
+    {
+      recipient: "0x136F342DBC00Dc105B23ecC40b1134830720f721" as Address,
+      bps: 500n,
+    },
+  ],
+  bondingCurveParams: {
+    prices,
+    numSteps,
+    stepSize,
+  },
+  vestingStartTime: "0",
+  vestingDuration: "0",
+  vestingWallet: "0x0000000000000000000000000000000000000000" as Address,
+  appIdentifier: "AlphaTokenExample",
+  protocolFeeBps: 500,
+  allowAutoGraduation: false,
+};
 
 async function main() {
-  // Initialize the SDK
-  const sdk = await DeployerSDK.getDeployer({
-    client: "ethers",
-    network: "base-mainnet",
+  const sdk = new EthersDeployer({
+    network: "base-sepolia",
     rpcUrl,
-    signer,
+    privateKey: PRIVATE_KEY,
   });
 
   try {
-    // Check whitelist
-    // base token must be whitelisted to launch a token with it
-    const isWhitelisted = await sdk.read.isBaseTokenWhitelisted(
-      "0x0000000000000000000000000000000000000000"
-    );
-    console.log("ETH is whitelisted:", isWhitelisted);
+    // 🔨 Launch Token
+    const result = await sdk.write.launchToken(tokenParams);
+    console.log("✅ Token launched successfully!");
+    console.log("Transaction hash:", result.tx.hash);
+    console.log("Token address:", result.createdTokenAddress);
 
-    // Launch token
-    console.log("Launching new token...");
-    const launchTx = await sdk.write.launchToken({
-      name: "TT_" + randomNumber,
-      symbol: "TTK_" + randomNumber,
-      image: "https://example.com/image.png",
-      creator: publicKey as Address,
-      baseToken: "0x0000000000000000000000000000000000000000",
-      teamSupply: "1000000000000000000000000",
-      totalSupply: "10000000000000000000000000",
-      bondingCurveSupply: "5000000000000000000000",
-      liquidityPoolSupply: "995000000000000000000000",
-      bondingCurveBuyFee: "250", // 2.5% (250 basis points)
-      bondingCurveSellFee: "250", // 2.5%
-      bondingCurveFeeSplits: [
-        { recipient: publicKey as Address, bps: BigInt(9500) },
-        { recipient: protocolFeeRecipient as Address, bps: BigInt(500) },
-      ],
-      bondingCurveParams: {
-        prices: [
-          "110000000",
-          "120000000",
-          "130000000",
-          "140000000",
-          "150000000",
-          "160000000",
-          "170000000",
-          "180000000",
-          "190000000",
-          "200000000",
-        ],
-        numSteps: "10",
-        stepSize: "500000000000000000000",
-      },
-      allowForcedGraduation: false,
-      graduationFeeBps: "0",
-      graduationFeeSplits: [],
-      poolFees: 3000,
-      poolFeeSplits: [
-        { recipient: publicKey as Address, bps: BigInt(9500) },
-        { recipient: protocolFeeRecipient, bps: BigInt(500) }, // this is the protocol fee recipient, Dont need to add this, it will be added automatically
-      ],
-      surgeFeeDuration: "900",
-      maxSurgeFeeBps: "1000",
-      protocolFeeBps: 500,
-    });
-    console.log("Launch Token", launchTx);
+    // 🧾 Get Buy Quote for 0.001 ETH
+    const buyQuote = await sdk.read.getBuyQuote(TEST_TOKEN_ADDRESS, "0.001");
+    console.log("💰 Buy Quote (0.001 ETH):", buyQuote);
 
-    // Get buy quote
-    console.log("Getting buy quote...");
-    const buyQuote = await sdk.read.getBuyQuote(
-      testTokenAddress,
-      amountETHToUseForBuy1
-    );
-    console.log("Buy Quote:", buyQuote);
+    // 💸 Get Sell Quote for 10 tokens
+    const sellQuote = await sdk.read.getSellQuote(TEST_TOKEN_ADDRESS, "10");
+    console.log("📉 Sell Quote (0.001 ETH):", sellQuote);
 
-    // Buy tokens
-    console.log("Buying tokens...");
+    // 💸 Buy Token
     const buyTx = await sdk.write.buyToken({
-      token: testTokenAddress,
-      amountIn: amountETHToUseForBuy1,
-      amountOutMin: "0",
-      to: publicKey,
-      value: amountETHToUseForBuy1,
+      amountIn: "0.001", // 0.001 ETH
+      token: TEST_TOKEN_ADDRESS,
+      amountOutMin: "0", // Minimum expected token amount
+      to: RECIPIENT,
     });
-    console.log("Buy transaction hash:", buyTx.hash);
-    await buyTx.wait();
+    console.log("🛒 Buy Tx Hash:", buyTx);
 
-    // Get sell quote
-    console.log("Getting sell quote...");
-    const sellQuote = await sdk.read.getSellQuote(
-      testTokenAddress,
-      amountTokensToSell
-    );
-    console.log("Sell Quote:", sellQuote);
-
-    // Approve and sell
-    console.log("Approving and selling tokens...");
+    // 🔁 Approve and Sell Token
     const sellTx = await sdk.write.approveAndSell({
-      token: testTokenAddress,
-      amountIn: amountTokensToSell,
-      amountOutMin: "0",
-      to: publicKey,
+      amountIn: "0.0001", // 0.0001 tokens
+      token: TEST_TOKEN_ADDRESS,
+      amountOutMin: "0", // Minimum expected ETH out
+      to: RECIPIENT,
     });
-    console.log("Sell transaction hash:", sellTx.hash);
-    await sellTx.wait();
+    console.log("💸 Sell Tx Hash:", sellTx);
 
-    // Claim fees
-    console.log("Claiming fees...");
-    const claimTx = await sdk.write.claimFee(testTokenAddress);
-    console.log("Claim transaction hash:", claimTx.hash);
-    await claimTx.wait();
-
-    // Buy more tokens
-    console.log("Getting second buy quote...");
-    const buyQuote2 = await sdk.read.getBuyQuote(
-      testTokenAddress,
-      amountETHToUseForBuy2
+    // 🎓 Graduate the token
+    const graduate = await sdk.write.graduateToken(
+      TEST_TOKEN_ADDRESS, // use the same token address deployed earlier
+      true // allowPreGraduation: set to true if early graduation is allowed
     );
-    console.log("Second Buy Quote:", buyQuote2);
+    console.log("🎓 Graduate Tx:", graduate);
 
-    console.log("Buying more tokens...");
-    const buyTx2 = await sdk.write.buyToken({
-      token: testTokenAddress,
-      amountIn: amountETHToUseForBuy2,
-      amountOutMin: "0",
-      to: publicKey,
-      value: amountETHToUseForBuy2,
-    });
-    console.log("Second buy transaction hash:", buyTx2.hash);
-    await buyTx2.wait();
+    // 🔮 Predict token address before deployment (optional)
+    // You can use this if you want to know the address of the token before it's actually launched
+    const predictedAddress = await sdk.read.getPredictedTokenAddress(
+      CREATOR, // same creator used in tokenParams
+      "0xSALT" // 32 Byte salt
+    );
+    console.log("🔮 Predicted token address:", predictedAddress);
 
-    // Graduate token
-    console.log("Graduating token...");
-    const graduateTx = await sdk.write.graduateToken(testTokenAddress, true);
-    console.log("Graduate transaction hash:", graduateTx.hash);
-    await graduateTx.wait();
+    // 📈 Fetch token price
+    // Useful for showing current market price to users
+    const getTokenPrice = await sdk.read.getTokenPrice(TEST_TOKEN_ADDRESS);
+    console.log("📈 Token price:", getTokenPrice);
 
-    console.log("All steps completed successfully!");
+    // 🎓 Check graduation status of a token
+    // Indicates whether a token has graduated from bonding curve to liquidity pool
+    const isGraduated = await sdk.read.isGraduated(TEST_TOKEN_ADDRESS);
+    console.log("🎓 Token graduated?", isGraduated);
+
+    // 💰 Claim accrued protocol fees for a graduated token
+    // Can be called after graduation to collect earned fees (if any)
+    const claimFee = await sdk.write.claimFee(TEST_TOKEN_ADDRESS);
+    console.log("💰 Claimed fee transaction hash:", claimFee);
   } catch (error) {
-    console.error("Error:", error);
+    console.error("❌ Error:", error);
   }
 }
 
-main().catch(console.error);
+main();
