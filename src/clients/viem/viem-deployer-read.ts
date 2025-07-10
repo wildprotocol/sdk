@@ -18,6 +18,7 @@ import {
   TokenState,
   FeeSplit,
   Address,
+  FeeBreakdown,
 } from "../../types";
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
 import { CONTRACTS } from "../../config";
@@ -342,9 +343,10 @@ export class ViemDeployerReader {
   }
 
   async getFees(token: Address): Promise<{
+    tokenFeeShare?: Record<string, FeeBreakdown>;
     poolFeeSplits?: FeeSplit[];
     bondingCurveFeeAccumulated?: string;
-    computeUnclaimedFee?: string;
+    computeUnclaimedFee?: [bigint, bigint];
     errors?: string[];
   }> {
     const [splitsResult, bondingResult, unclaimedResult] =
@@ -360,7 +362,7 @@ export class ViemDeployerReader {
       splitsResult.status === "fulfilled"
         ? splitsResult.value.map((split: any) => ({
             recipient: split.recipient,
-            bps: split.bps,
+            bps: BigInt(split.bps),
           }))
         : (errors.push(`poolFeeSplits failed: ${splitsResult.reason}`),
           undefined);
@@ -375,14 +377,40 @@ export class ViemDeployerReader {
 
     const computeUnclaimedFee =
       unclaimedResult.status === "fulfilled"
-        ? formatEther(unclaimedResult.value)
+        ? (unclaimedResult.value as [bigint, bigint])
         : (errors.push(`computeUnclaimedFee failed: ${unclaimedResult.reason}`),
           undefined);
+
+    let tokenFeeShare: Record<string, FeeBreakdown> | undefined;
+
+    if (poolFeeSplits && bondingCurveFeeAccumulated) {
+      const bondingFee = parseFloat(bondingCurveFeeAccumulated);
+      const [uniswapBaseFee, uniswapTokenFee] = computeUnclaimedFee ?? [0n, 0n];
+
+      tokenFeeShare = {};
+      for (const { recipient, bps } of poolFeeSplits) {
+        const shareRatio = Number(bps) / 10_000;
+
+        tokenFeeShare[recipient] = {
+          baseTokenFeeShare: (bondingFee * shareRatio).toFixed(18),
+          bondingCurveBaseTokenFee: (bondingFee * shareRatio).toFixed(18),
+          uniswapBaseTokenFee: (
+            (BigInt(Math.floor(shareRatio * 1e6)) * uniswapBaseFee) /
+            1_000_000n
+          ).toString(),
+          uniswapTokenFee: (
+            (BigInt(Math.floor(shareRatio * 1e6)) * uniswapTokenFee) /
+            1_000_000n
+          ).toString(),
+        };
+      }
+    }
 
     return {
       poolFeeSplits,
       bondingCurveFeeAccumulated,
       computeUnclaimedFee,
+      tokenFeeShare,
       errors: errors.length ? errors : undefined,
     };
   }
