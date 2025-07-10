@@ -389,19 +389,14 @@ export class ViemDeployerReader {
 
       tokenFeeShare = {};
       for (const { recipient, bps } of poolFeeSplits) {
-        const shareRatio = Number(bps) / 10_000;
-
         tokenFeeShare[recipient] = {
-          baseTokenFeeShare: (bondingFee * shareRatio).toFixed(18),
-          bondingCurveBaseTokenFee: (bondingFee * shareRatio).toFixed(18),
-          uniswapBaseTokenFee: (
-            (BigInt(Math.floor(shareRatio * 1e6)) * uniswapBaseFee) /
-            1_000_000n
-          ).toString(),
-          uniswapTokenFee: (
-            (BigInt(Math.floor(shareRatio * 1e6)) * uniswapTokenFee) /
-            1_000_000n
-          ).toString(),
+          baseTokenFeeShare: ((bondingFee * Number(bps)) / 10_000).toFixed(18),
+          bondingCurveBaseTokenFee: (
+            (bondingFee * Number(bps)) /
+            10_000
+          ).toFixed(18),
+          uniswapBaseTokenFee: ((uniswapBaseFee * bps) / 10_000n).toString(),
+          uniswapTokenFee: ((uniswapTokenFee * bps) / 10_000n).toString(),
         };
       }
     }
