@@ -12,10 +12,12 @@ import { CONTRACTS } from "../../config";
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
 import { STATEMANAGER_ABI } from "../../abis/statemanager-abi";
 import type { EthersSDKConfig } from "./types";
+import { LP_LOCKER_ABI } from "../../abis/lp-locker-abi";
 
 export class DeployerReader {
   protected contract: ethers.Contract;
   protected stateManagerContract: ethers.Contract;
+  protected lpLockerContract: ethers.Contract;
   protected provider: ethers.Provider;
 
   constructor(config: EthersSDKConfig) {
@@ -35,6 +37,11 @@ export class DeployerReader {
     this.stateManagerContract = new ethers.Contract(
       networkContracts.STATE_MANAGER_ADDRESS,
       STATEMANAGER_ABI,
+      this.provider
+    );
+    this.lpLockerContract = new ethers.Contract(
+      networkContracts.LP_LOCKER_ADDRESS,
+      LP_LOCKER_ABI,
       this.provider
     );
   }
@@ -126,6 +133,10 @@ export class DeployerReader {
     return formatEther(
       await this.stateManagerContract.bondingCurveFeeAccumulated(token)
     );
+  }
+
+  async getComputerUnclamiedFee(token: string): Promise<string> {
+    return formatEther(await this.lpLockerContract.computeUnclaimedFees(token));
   }
 
   async getAutoGraduationParams(token: string): Promise<AutoGraduationParams> {
@@ -220,6 +231,48 @@ export class DeployerReader {
       recipient: split.recipient,
       bps: split.bps,
     }));
+  }
+
+  async getFees(token: string): Promise<{
+    poolFeeSplits?: FeeSplit[];
+    bondingCurveFeeAccumulated?: string;
+    computeUnclaimedFee?: string;
+    errors?: string[];
+  }> {
+    const [splitsResult, bondingResult, unclaimedResult] =
+      await Promise.allSettled([
+        this.stateManagerContract.poolFeeSplits(token),
+        this.stateManagerContract.bondingCurveFeeAccumulated(token),
+        this.lpLockerContract.computeUnclaimedFees(token),
+      ]);
+
+    const errors: string[] = [];
+
+    const poolFeeSplits =
+      splitsResult.status === "fulfilled"
+        ? splitsResult.value.map((split: any) => ({
+            recipient: split.recipient,
+            bps: split.bps,
+          }))
+        : (errors.push("poolFeeSplits failed"), splitsResult?.reason);
+
+    const bondingCurveFeeAccumulated =
+      bondingResult.status === "fulfilled"
+        ? formatEther(bondingResult.value)
+        : (errors.push("bondingCurveFeeAccumulated failed"),
+          bondingResult.reason);
+
+    const computeUnclaimedFee =
+      unclaimedResult.status === "fulfilled"
+        ? formatEther(unclaimedResult.value)
+        : (errors.push("computeUnclaimedFee failed"), unclaimedResult?.reason);
+
+    return {
+      poolFeeSplits,
+      bondingCurveFeeAccumulated,
+      computeUnclaimedFee,
+      errors: errors.length ? errors : undefined,
+    };
   }
 
   async getPositionManager(): Promise<string> {

@@ -23,11 +23,13 @@ import { DEPLOYER_ABI } from "../../abis/deployer-abi";
 import { CONTRACTS } from "../../config";
 import { STATEMANAGER_ABI } from "../../abis/statemanager-abi";
 import type { ViemSDKConfig } from "./types";
+import { LP_LOCKER_ABI } from "../../abis/lp-locker-abi";
 
 export class ViemDeployerReader {
   protected publicClient: ReturnType<typeof createPublicClient>;
   protected deployerAddress: Address;
   protected stateManagerAddress: Address;
+  protected lpLockerAddress: Address;
 
   constructor(config: ViemSDKConfig) {
     if (!config.rpcUrl) throw new Error("RPC URL is required");
@@ -43,6 +45,7 @@ export class ViemDeployerReader {
     this.deployerAddress = networkContracts.DEPLOYER_ADDRESS as Address;
     this.stateManagerAddress =
       networkContracts.STATE_MANAGER_ADDRESS as Address;
+    this.lpLockerAddress = networkContracts.LP_LOCKER_ADDRESS as Address;
   }
 
   private async callDeployer<
@@ -78,6 +81,25 @@ export class ViemDeployerReader {
     return await this.publicClient.readContract({
       address: this.stateManagerAddress,
       abi: STATEMANAGER_ABI,
+      functionName: functionName,
+      args: args,
+    });
+  }
+
+  private async callLpLocker<
+    functionName extends ContractFunctionName<
+      typeof LP_LOCKER_ABI,
+      "pure" | "view"
+    >,
+    const args extends ContractFunctionArgs<
+      typeof LP_LOCKER_ABI,
+      "pure" | "view",
+      functionName
+    >,
+  >(functionName: functionName, args: args): Promise<any> {
+    return await this.publicClient.readContract({
+      address: this.lpLockerAddress,
+      abi: LP_LOCKER_ABI,
       functionName: functionName,
       args: args,
     });
@@ -212,6 +234,10 @@ export class ViemDeployerReader {
     ]);
     return formatEther(result);
   }
+  async getComputeUnclamiedFee(token: Address): Promise<string> {
+    const result = await this.callLpLocker("computeUnclaimedFees", [token]);
+    return formatEther(result);
+  }
 
   async getAutoGraduationParams(token: Address): Promise<AutoGraduationParams> {
     const result = await this.callStateManager("getAutoGraduationParams", [
@@ -313,6 +339,52 @@ export class ViemDeployerReader {
       recipient: split.recipient,
       bps: split.bps,
     }));
+  }
+
+  async getFees(token: Address): Promise<{
+    poolFeeSplits?: FeeSplit[];
+    bondingCurveFeeAccumulated?: string;
+    computeUnclaimedFee?: string;
+    errors?: string[];
+  }> {
+    const [splitsResult, bondingResult, unclaimedResult] =
+      await Promise.allSettled([
+        this.callStateManager("poolFeeSplits", [token]),
+        this.callStateManager("bondingCurveFeeAccumulated", [token]),
+        this.callLpLocker("computeUnclaimedFees", [token]),
+      ]);
+
+    const errors: string[] = [];
+
+    const poolFeeSplits =
+      splitsResult.status === "fulfilled"
+        ? splitsResult.value.map((split: any) => ({
+            recipient: split.recipient,
+            bps: split.bps,
+          }))
+        : (errors.push(`poolFeeSplits failed: ${splitsResult.reason}`),
+          undefined);
+
+    const bondingCurveFeeAccumulated =
+      bondingResult.status === "fulfilled"
+        ? formatEther(bondingResult.value)
+        : (errors.push(
+            `bondingCurveFeeAccumulated failed: ${bondingResult.reason}`
+          ),
+          undefined);
+
+    const computeUnclaimedFee =
+      unclaimedResult.status === "fulfilled"
+        ? formatEther(unclaimedResult.value)
+        : (errors.push(`computeUnclaimedFee failed: ${unclaimedResult.reason}`),
+          undefined);
+
+    return {
+      poolFeeSplits,
+      bondingCurveFeeAccumulated,
+      computeUnclaimedFee,
+      errors: errors.length ? errors : undefined,
+    };
   }
 
   async getPositionManager(): Promise<string> {
