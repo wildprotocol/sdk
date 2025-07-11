@@ -7,15 +7,18 @@ import {
   TokenDeploymentConfig,
   TokenState,
   FeeSplit,
+  FeeBreakdown,
 } from "../../types";
 import { CONTRACTS } from "../../config";
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
 import { STATEMANAGER_ABI } from "../../abis/statemanager-abi";
 import type { EthersSDKConfig } from "./types";
+import { LP_LOCKER_ABI } from "../../abis/lp-locker-abi";
 
 export class DeployerReader {
   protected contract: ethers.Contract;
   protected stateManagerContract: ethers.Contract;
+  protected lpLockerContract: ethers.Contract;
   protected provider: ethers.Provider;
 
   constructor(config: EthersSDKConfig) {
@@ -35,6 +38,11 @@ export class DeployerReader {
     this.stateManagerContract = new ethers.Contract(
       networkContracts.STATE_MANAGER_ADDRESS,
       STATEMANAGER_ABI,
+      this.provider
+    );
+    this.lpLockerContract = new ethers.Contract(
+      networkContracts.LP_LOCKER_ADDRESS,
+      LP_LOCKER_ABI,
       this.provider
     );
   }
@@ -126,6 +134,10 @@ export class DeployerReader {
     return formatEther(
       await this.stateManagerContract.bondingCurveFeeAccumulated(token)
     );
+  }
+
+  async getComputerUnclamiedFee(token: string): Promise<string> {
+    return await this.lpLockerContract.computeUnclaimedFees(token);
   }
 
   async getAutoGraduationParams(token: string): Promise<AutoGraduationParams> {
@@ -220,6 +232,70 @@ export class DeployerReader {
       recipient: split.recipient,
       bps: split.bps,
     }));
+  }
+
+  async getFees(token: string): Promise<{
+    tokenFeeShare?: Record<string, FeeBreakdown>;
+    poolFeeSplits?: FeeSplit[];
+    bondingCurveFeeAccumulated?: string;
+    computeUnclaimedFee?: [bigint, bigint];
+    errors?: string[];
+  }> {
+    const [splitsResult, bondingResult, unclaimedResult] =
+      await Promise.allSettled([
+        this.stateManagerContract.poolFeeSplits(token),
+        this.stateManagerContract.bondingCurveFeeAccumulated(token),
+        this.lpLockerContract.computeUnclaimedFees(token),
+      ]);
+
+    const errors: string[] = [];
+
+    const poolFeeSplits =
+      splitsResult.status === "fulfilled"
+        ? splitsResult.value.map((split: any) => ({
+            recipient: split.recipient,
+            bps: BigInt(split.bps),
+          }))
+        : (errors.push("poolFeeSplits failed"), undefined);
+
+    const bondingCurveFeeAccumulated =
+      bondingResult.status === "fulfilled"
+        ? formatEther(bondingResult.value)
+        : (errors.push("bondingCurveFeeAccumulated failed"), undefined);
+
+    const computeUnclaimedFee =
+      unclaimedResult.status === "fulfilled"
+        ? (unclaimedResult.value as [bigint, bigint])
+        : (errors.push(`computeUnclaimedFee failed: ${unclaimedResult.reason}`),
+          undefined);
+
+    let tokenFeeShare: Record<string, FeeBreakdown> | undefined;
+
+    if (poolFeeSplits && bondingCurveFeeAccumulated) {
+      const bondingFee = parseFloat(bondingCurveFeeAccumulated);
+      const [uniswapBaseFee, uniswapTokenFee] = computeUnclaimedFee ?? [0n, 0n];
+
+      tokenFeeShare = {};
+      for (const { recipient, bps } of poolFeeSplits) {
+        tokenFeeShare[recipient] = {
+          baseTokenFeeShare: ((bondingFee * Number(bps)) / 10_000).toFixed(18),
+          bondingCurveBaseTokenFee: (
+            (bondingFee * Number(bps)) /
+            10_000
+          ).toFixed(18),
+          uniswapBaseTokenFee: ((uniswapBaseFee * bps) / 10_000n).toString(),
+          uniswapTokenFee: ((uniswapTokenFee * bps) / 10_000n).toString(),
+        };
+      }
+    }
+
+    return {
+      poolFeeSplits,
+      bondingCurveFeeAccumulated,
+      computeUnclaimedFee,
+      tokenFeeShare,
+      errors: errors.length ? errors : undefined,
+    };
   }
 
   async getPositionManager(): Promise<string> {

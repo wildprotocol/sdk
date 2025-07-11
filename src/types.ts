@@ -140,3 +140,10 @@ export type SwapTokenResult = {
   transactionHash: string;
   receipt: ContractTransactionReceipt;
 };
+
+export type FeeBreakdown = {
+  baseTokenFeeShare: string;
+  bondingCurveBaseTokenFee: string;
+  uniswapBaseTokenFee: string;
+  uniswapTokenFee: string;
+};
