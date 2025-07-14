@@ -24,6 +24,13 @@ export function validateLaunchTokenBondingCurveParams(
 export function ensureProtocolFee(splitArray: FeeSplit[]): FeeSplit[] {
   const protocolFeeRecipient =
     "0x136F342DBC00Dc105B23ecC40b1134830720f721" as Address;
+
+  const providedBps = splitArray.reduce((acc, split) => acc + split.bps, 0n);
+
+  if (providedBps !== 10_000n) {
+    throw new Error("Validation Error: The sum of bps must be 10,000.");
+  }
+
   const totalBps = 10_000n;
   const protocolFeeBps = 500n;
 
