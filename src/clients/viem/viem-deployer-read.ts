@@ -7,6 +7,7 @@ import {
   ContractFunctionRevertedError,
   ContractFunctionName,
   ContractFunctionArgs,
+  formatUnits,
 } from "viem";
 
 import {
@@ -343,72 +344,123 @@ export class ViemDeployerReader {
   }
 
   async getFees(token: Address): Promise<{
-    tokenFeeShare?: Record<string, FeeBreakdown>;
-    poolFeeSplits?: FeeSplit[];
-    bondingCurveFeeAccumulated?: string;
-    computeUnclaimedFee?: [bigint, bigint];
+    tokenFeeShare: Record<string, FeeBreakdown>;
+    bondingCurveFeeAccumulated: {
+      baseFee: string;
+      tokenFee: string;
+    };
+    lpFeeAccumulated: {
+      baseFee: string;
+      tokenFee: string;
+    };
   }> {
-    const [splitsResult, bondingResult, unclaimedResult] =
+    const [configResult, bondingResult, unclaimedResult] =
       await Promise.allSettled([
-        this.callStateManager("poolFeeSplits", [token]),
+        this.getTokenDeploymentConfig(token),
         this.callStateManager("bondingCurveFeeAccumulated", [token]),
         this.callLpLocker("computeUnclaimedFees", [token]),
       ]);
 
     const errors: string[] = [];
 
-    const poolFeeSplits =
-      splitsResult.status === "fulfilled"
-        ? splitsResult.value.map((split: any) => ({
-            recipient: split.recipient,
-            bps: BigInt(split.bps),
-          }))
-        : (errors.push(`poolFeeSplits failed: ${splitsResult.reason}`),
-          undefined);
+    const config =
+      configResult.status === "fulfilled"
+        ? configResult.value
+        : (errors.push("token config fetch failed"), undefined);
 
     const bondingCurveFeeAccumulated =
       bondingResult.status === "fulfilled"
-        ? formatEther(bondingResult.value)
-        : (errors.push(
-            `bondingCurveFeeAccumulated failed: ${bondingResult.reason}`
-          ),
-          undefined);
+        ? bondingResult.value
+        : (errors.push("bondingCurveFeeAccumulated failed"), undefined);
 
-    // TODO: Throw except if contract reverts
     const computeUnclaimedFee =
       unclaimedResult.status === "fulfilled"
         ? (unclaimedResult.value as [bigint, bigint])
-        : [0n, 0n] as [bigint, bigint];
-
-    let tokenFeeShare: Record<string, FeeBreakdown> | undefined;
-
-    if (poolFeeSplits && bondingCurveFeeAccumulated) {
-      const bondingFee = parseFloat(bondingCurveFeeAccumulated);
-      const [uniswapBaseFee, uniswapTokenFee] = computeUnclaimedFee;
-
-      tokenFeeShare = {};
-      for (const { recipient, bps } of poolFeeSplits) {
-        tokenFeeShare[recipient] = {
-          baseTokenFeeShare: ((bondingFee * Number(bps)) / 10_000).toFixed(18),
-          bondingCurveBaseTokenFee: (
-            (bondingFee * Number(bps)) /
-            10_000
-          ).toFixed(18),
-          uniswapBaseTokenFee: ((uniswapBaseFee * bps) / 10_000n).toString(),
-          uniswapTokenFee: ((uniswapTokenFee * bps) / 10_000n).toString(),
-        };
-      }
-    }
+        : ([0n, 0n] as [bigint, bigint]);
 
     if (errors.length) {
       throw new Error(errors.join("\n"));
     }
 
+    // Get base token decimals
+    let baseTokenDecimals = 18;
+    if (config!.baseToken !== "0x0000000000000000000000000000000000000000") {
+      baseTokenDecimals = await this.publicClient.readContract({
+        address: config!.baseToken,
+        abi: [
+          {
+            name: "decimals",
+            type: "function",
+            stateMutability: "view",
+            inputs: [],
+            outputs: [{ type: "uint8" }],
+          },
+        ],
+        functionName: "decimals",
+      });
+    }
+
+    const bondingFee = BigInt(bondingCurveFeeAccumulated);
+    const [uniswapBaseFee, uniswapTokenFee] = computeUnclaimedFee;
+
+    const bondingCurveFeeShare: Record<
+      string,
+      { baseFee: bigint; tokenFee: bigint }
+    > = {};
+    const poolFeeShares: Record<
+      string,
+      { uniswapBaseFee: bigint; uniswapTokenFee: bigint }
+    > = {};
+    const tokenFeeShare: Record<string, FeeBreakdown> = {};
+
+    for (const { recipient, bps } of config!.bondingCurveFeeSplits) {
+      bondingCurveFeeShare[recipient] = {
+        baseFee: (bondingFee * bps) / 10_000n,
+        tokenFee: 0n,
+      };
+    }
+
+    for (const { recipient, bps } of config!.poolFeeSplits) {
+      poolFeeShares[recipient] = {
+        uniswapBaseFee: (uniswapBaseFee * bps) / 10_000n,
+        uniswapTokenFee: (uniswapTokenFee * bps) / 10_000n,
+      };
+    }
+
+    for (const recipient in bondingCurveFeeShare) {
+      tokenFeeShare[recipient] = {
+        baseTokenFeeShare: formatUnits(
+          bondingCurveFeeShare[recipient].baseFee +
+            (poolFeeShares[recipient]?.uniswapBaseFee || 0n),
+          baseTokenDecimals
+        ),
+        tokenFeeShare: formatEther(
+          bondingCurveFeeShare[recipient].tokenFee +
+            (poolFeeShares[recipient]?.uniswapTokenFee || 0n)
+        ),
+        bondingCurveBaseTokenFee: formatUnits(
+          bondingCurveFeeShare[recipient].baseFee,
+          baseTokenDecimals
+        ),
+        uniswapBaseTokenFee: formatEther(
+          poolFeeShares[recipient]?.uniswapBaseFee || 0n
+        ),
+        uniswapTokenFee: formatEther(
+          poolFeeShares[recipient]?.uniswapTokenFee || 0n
+        ),
+      };
+    }
+
     return {
       tokenFeeShare,
-      poolFeeSplits,
-      bondingCurveFeeAccumulated,
-      computeUnclaimedFee,
+      bondingCurveFeeAccumulated: {
+        baseFee: formatEther(bondingFee),
+        tokenFee: "0",
+      },
+      lpFeeAccumulated: {
+        baseFee: formatEther(uniswapBaseFee),
+        tokenFee: formatEther(uniswapTokenFee),
+      },
     };
   }
 

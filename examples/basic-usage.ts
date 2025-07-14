@@ -62,7 +62,7 @@ const tokenParams = {
   vestingWallet: "0x0000000000000000000000000000000000000000" as Address,
   appIdentifier: "AlphaTokenExample",
   protocolFeeBps: 500,
-  allowAutoGraduation: false,
+  allowAutoGraduation: true,
 };
 
 async function main() {
@@ -129,6 +129,10 @@ async function main() {
     // Indicates whether a token has graduated from bonding curve to liquidity pool
     const isGraduated = await sdk.read.isGraduated(TEST_TOKEN_ADDRESS);
     console.log("🎓 Token graduated?", isGraduated);
+
+    // 💰 Get accrued protocol fees for a graduated token
+    const fees = await sdk.read.getFees(TEST_TOKEN_ADDRESS);
+    console.log("💰 Fee transaction hash:", fees);
 
     // 💰 Claim accrued protocol fees for a graduated token
     // Can be called after graduation to collect earned fees (if any)
