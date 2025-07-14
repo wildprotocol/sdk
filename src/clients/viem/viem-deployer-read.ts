@@ -347,7 +347,6 @@ export class ViemDeployerReader {
     poolFeeSplits?: FeeSplit[];
     bondingCurveFeeAccumulated?: string;
     computeUnclaimedFee?: [bigint, bigint];
-    errors?: string[];
   }> {
     const [splitsResult, bondingResult, unclaimedResult] =
       await Promise.allSettled([
@@ -401,12 +400,15 @@ export class ViemDeployerReader {
       }
     }
 
+    if (errors.length) {
+      throw new Error(errors.join("\n"));
+    }
+
     return {
       tokenFeeShare,
       poolFeeSplits,
       bondingCurveFeeAccumulated,
       computeUnclaimedFee,
-      errors: errors.length ? errors : undefined,
     };
   }
 

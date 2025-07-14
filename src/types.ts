@@ -143,6 +143,7 @@ export type SwapTokenResult = {
 
 export type FeeBreakdown = {
   baseTokenFeeShare: string;
+  tokenFeeShare: string;
   bondingCurveBaseTokenFee: string;
   uniswapBaseTokenFee: string;
   uniswapTokenFee: string;
