@@ -263,17 +263,17 @@ export class DeployerReader {
         ? formatEther(bondingResult.value)
         : (errors.push("bondingCurveFeeAccumulated failed"), undefined);
 
+    // TODO: Throw except if contract reverts
     const computeUnclaimedFee =
       unclaimedResult.status === "fulfilled"
         ? (unclaimedResult.value as [bigint, bigint])
-        : (errors.push(`computeUnclaimedFee failed: ${unclaimedResult.reason}`),
-          undefined);
+        : [0n, 0n] as [bigint, bigint];
 
     let tokenFeeShare: Record<string, FeeBreakdown> | undefined;
 
     if (poolFeeSplits && bondingCurveFeeAccumulated) {
       const bondingFee = parseFloat(bondingCurveFeeAccumulated);
-      const [uniswapBaseFee, uniswapTokenFee] = computeUnclaimedFee ?? [0n, 0n];
+      const [uniswapBaseFee, uniswapTokenFee] = computeUnclaimedFee;
 
       tokenFeeShare = {};
       for (const { recipient, bps } of poolFeeSplits) {
@@ -290,10 +290,10 @@ export class DeployerReader {
     }
 
     return {
+      tokenFeeShare,
       poolFeeSplits,
       bondingCurveFeeAccumulated,
       computeUnclaimedFee,
-      tokenFeeShare,
       errors: errors.length ? errors : undefined,
     };
   }
