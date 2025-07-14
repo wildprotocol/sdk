@@ -1,4 +1,4 @@
-import { ethers, formatEther, parseEther, BigNumberish } from "ethers";
+import { ethers, formatEther, parseEther, BigNumberish, formatUnits } from "ethers";
 import {
   BuyQuote,
   SellQuote,
@@ -7,15 +7,18 @@ import {
   TokenDeploymentConfig,
   TokenState,
   FeeSplit,
+  FeeBreakdown,
 } from "../../types";
 import { CONTRACTS } from "../../config";
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
 import { STATEMANAGER_ABI } from "../../abis/statemanager-abi";
 import type { EthersSDKConfig } from "./types";
+import { LP_LOCKER_ABI } from "../../abis/lp-locker-abi";
 
 export class DeployerReader {
   protected contract: ethers.Contract;
   protected stateManagerContract: ethers.Contract;
+  protected lpLockerContract: ethers.Contract;
   protected provider: ethers.Provider;
 
   constructor(config: EthersSDKConfig) {
@@ -35,6 +38,11 @@ export class DeployerReader {
     this.stateManagerContract = new ethers.Contract(
       networkContracts.STATE_MANAGER_ADDRESS,
       STATEMANAGER_ABI,
+      this.provider
+    );
+    this.lpLockerContract = new ethers.Contract(
+      networkContracts.LP_LOCKER_ADDRESS,
+      LP_LOCKER_ABI,
       this.provider
     );
   }
@@ -126,6 +134,10 @@ export class DeployerReader {
     return formatEther(
       await this.stateManagerContract.bondingCurveFeeAccumulated(token)
     );
+  }
+
+  async getComputerUnclamiedFee(token: string): Promise<string> {
+    return await this.lpLockerContract.computeUnclaimedFees(token);
   }
 
   async getAutoGraduationParams(token: string): Promise<AutoGraduationParams> {
@@ -220,6 +232,108 @@ export class DeployerReader {
       recipient: split.recipient,
       bps: split.bps,
     }));
+  }
+
+  async getFees(token: string): Promise<{
+    tokenFeeShare: Record<string, FeeBreakdown>;
+    bondingCurveFeeAccumulated: {
+      baseFee: string;
+      tokenFee: string;
+    };
+    lpFeeAccumulated: {
+      baseFee: string;
+      tokenFee: string;
+    };
+  }> {
+    const [configResult, bondingResult, unclaimedResult] =
+      await Promise.allSettled([
+        this.getTokenDeploymentConfig(token),
+        this.stateManagerContract.bondingCurveFeeAccumulated(token),
+        this.lpLockerContract.computeUnclaimedFees(token),
+      ]);
+
+    const errors: string[] = [];
+
+    const config =
+      configResult.status === "fulfilled"
+        ? configResult.value
+        : (errors.push("token config fetch failed"), undefined);
+
+    const bondingCurveFeeAccumulated =
+      bondingResult.status === "fulfilled"
+        ? bondingResult.value
+        : (errors.push("bondingCurveFeeAccumulated failed"), undefined);
+
+    // TODO: Throw except if contract reverts
+    const computeUnclaimedFee =
+      unclaimedResult.status === "fulfilled"
+        ? (unclaimedResult.value as [bigint, bigint])
+        : [0n, 0n] as [bigint, bigint];
+
+    if (errors.length) {
+      throw new Error(errors.join("\n"));
+    }
+
+    let baseTokenDecimals = 18;
+    if (config!.baseToken !== "0x0000000000000000000000000000000000000000") {
+      // Create ERC20 contract instance to get decimals
+      const erc20Contract = new ethers.Contract(
+        config!.baseToken,
+        ["function decimals() view returns (uint8)"],
+        this.provider
+      );
+      baseTokenDecimals = await erc20Contract.decimals();
+    }
+
+    const tokenFeeShare: Record<string, FeeBreakdown> = {};
+    const bondingCurveFeeShare: Record<string, {
+      baseFee: bigint;
+      tokenFee: bigint;
+    }> = {};
+    const poolFeeShares: Record<string, {
+      uniswapBaseFee: bigint;
+      uniswapTokenFee: bigint;
+    }> = {};
+
+    const bondingFee = BigInt(bondingCurveFeeAccumulated!);
+    const [uniswapBaseFee, uniswapTokenFee] = computeUnclaimedFee;
+
+
+    for (const { recipient, bps } of config!.bondingCurveFeeSplits) {
+      bondingCurveFeeShare[recipient] = {
+        baseFee: (bondingFee * bps) / 10_000n,
+        tokenFee: 0n,
+      };
+    }
+
+    for (const { recipient, bps } of config!.poolFeeSplits) {
+      poolFeeShares[recipient] = {
+        uniswapBaseFee: (uniswapBaseFee * bps) / 10_000n,
+        uniswapTokenFee: (uniswapTokenFee * bps) / 10_000n,
+      };
+    }
+
+    for (const recipient in bondingCurveFeeShare) {
+      tokenFeeShare[recipient] = {
+        baseTokenFeeShare: formatUnits(bondingCurveFeeShare[recipient].baseFee + poolFeeShares[recipient].uniswapBaseFee, baseTokenDecimals),
+        tokenFeeShare: formatEther(bondingCurveFeeShare[recipient].tokenFee + poolFeeShares[recipient].uniswapTokenFee),
+        bondingCurveBaseTokenFee: formatUnits(bondingCurveFeeShare[recipient].baseFee, baseTokenDecimals),
+        uniswapBaseTokenFee: formatEther(poolFeeShares[recipient].uniswapBaseFee),
+        uniswapTokenFee: formatEther(poolFeeShares[recipient].uniswapTokenFee),
+      };
+    }
+
+    return {
+      tokenFeeShare,
+      bondingCurveFeeAccumulated: {
+        baseFee: formatEther(bondingFee),
+        tokenFee: "0", // Currently our contract doesn't accumulate fees in token, only in base token
+      },
+      lpFeeAccumulated: {
+        baseFee: formatEther(computeUnclaimedFee[0]), 
+        tokenFee: formatEther(computeUnclaimedFee[1]),
+      },
+    };
   }
 
   async getPositionManager(): Promise<string> {

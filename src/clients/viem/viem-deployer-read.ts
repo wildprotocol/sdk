@@ -7,6 +7,7 @@ import {
   ContractFunctionRevertedError,
   ContractFunctionName,
   ContractFunctionArgs,
+  formatUnits,
 } from "viem";
 
 import {
@@ -18,16 +19,19 @@ import {
   TokenState,
   FeeSplit,
   Address,
+  FeeBreakdown,
 } from "../../types";
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
 import { CONTRACTS } from "../../config";
 import { STATEMANAGER_ABI } from "../../abis/statemanager-abi";
 import type { ViemSDKConfig } from "./types";
+import { LP_LOCKER_ABI } from "../../abis/lp-locker-abi";
 
 export class ViemDeployerReader {
   protected publicClient: ReturnType<typeof createPublicClient>;
   protected deployerAddress: Address;
   protected stateManagerAddress: Address;
+  protected lpLockerAddress: Address;
 
   constructor(config: ViemSDKConfig) {
     if (!config.rpcUrl) throw new Error("RPC URL is required");
@@ -43,6 +47,7 @@ export class ViemDeployerReader {
     this.deployerAddress = networkContracts.DEPLOYER_ADDRESS as Address;
     this.stateManagerAddress =
       networkContracts.STATE_MANAGER_ADDRESS as Address;
+    this.lpLockerAddress = networkContracts.LP_LOCKER_ADDRESS as Address;
   }
 
   private async callDeployer<
@@ -78,6 +83,25 @@ export class ViemDeployerReader {
     return await this.publicClient.readContract({
       address: this.stateManagerAddress,
       abi: STATEMANAGER_ABI,
+      functionName: functionName,
+      args: args,
+    });
+  }
+
+  private async callLpLocker<
+    functionName extends ContractFunctionName<
+      typeof LP_LOCKER_ABI,
+      "pure" | "view"
+    >,
+    const args extends ContractFunctionArgs<
+      typeof LP_LOCKER_ABI,
+      "pure" | "view",
+      functionName
+    >,
+  >(functionName: functionName, args: args): Promise<any> {
+    return await this.publicClient.readContract({
+      address: this.lpLockerAddress,
+      abi: LP_LOCKER_ABI,
       functionName: functionName,
       args: args,
     });
@@ -212,6 +236,10 @@ export class ViemDeployerReader {
     ]);
     return formatEther(result);
   }
+  async getComputeUnclamiedFee(token: Address): Promise<string> {
+    const result = await this.callLpLocker("computeUnclaimedFees", [token]);
+    return formatEther(result);
+  }
 
   async getAutoGraduationParams(token: Address): Promise<AutoGraduationParams> {
     const result = await this.callStateManager("getAutoGraduationParams", [
@@ -313,6 +341,127 @@ export class ViemDeployerReader {
       recipient: split.recipient,
       bps: split.bps,
     }));
+  }
+
+  async getFees(token: Address): Promise<{
+    tokenFeeShare: Record<string, FeeBreakdown>;
+    bondingCurveFeeAccumulated: {
+      baseFee: string;
+      tokenFee: string;
+    };
+    lpFeeAccumulated: {
+      baseFee: string;
+      tokenFee: string;
+    };
+  }> {
+    const [configResult, bondingResult, unclaimedResult] =
+      await Promise.allSettled([
+        this.getTokenDeploymentConfig(token),
+        this.callStateManager("bondingCurveFeeAccumulated", [token]),
+        this.callLpLocker("computeUnclaimedFees", [token]),
+      ]);
+
+    const errors: string[] = [];
+
+    const config =
+      configResult.status === "fulfilled"
+        ? configResult.value
+        : (errors.push("token config fetch failed"), undefined);
+
+    const bondingCurveFeeAccumulated =
+      bondingResult.status === "fulfilled"
+        ? bondingResult.value
+        : (errors.push("bondingCurveFeeAccumulated failed"), undefined);
+
+    const computeUnclaimedFee =
+      unclaimedResult.status === "fulfilled"
+        ? (unclaimedResult.value as [bigint, bigint])
+        : ([0n, 0n] as [bigint, bigint]);
+
+    if (errors.length) {
+      throw new Error(errors.join("\n"));
+    }
+
+    // Get base token decimals
+    let baseTokenDecimals = 18;
+    if (config!.baseToken !== "0x0000000000000000000000000000000000000000") {
+      baseTokenDecimals = await this.publicClient.readContract({
+        address: config!.baseToken,
+        abi: [
+          {
+            name: "decimals",
+            type: "function",
+            stateMutability: "view",
+            inputs: [],
+            outputs: [{ type: "uint8" }],
+          },
+        ],
+        functionName: "decimals",
+      });
+    }
+
+    const bondingFee = BigInt(bondingCurveFeeAccumulated);
+    const [uniswapBaseFee, uniswapTokenFee] = computeUnclaimedFee;
+
+    const bondingCurveFeeShare: Record<
+      string,
+      { baseFee: bigint; tokenFee: bigint }
+    > = {};
+    const poolFeeShares: Record<
+      string,
+      { uniswapBaseFee: bigint; uniswapTokenFee: bigint }
+    > = {};
+    const tokenFeeShare: Record<string, FeeBreakdown> = {};
+
+    for (const { recipient, bps } of config!.bondingCurveFeeSplits) {
+      bondingCurveFeeShare[recipient] = {
+        baseFee: (bondingFee * bps) / 10_000n,
+        tokenFee: 0n,
+      };
+    }
+
+    for (const { recipient, bps } of config!.poolFeeSplits) {
+      poolFeeShares[recipient] = {
+        uniswapBaseFee: (uniswapBaseFee * bps) / 10_000n,
+        uniswapTokenFee: (uniswapTokenFee * bps) / 10_000n,
+      };
+    }
+
+    for (const recipient in bondingCurveFeeShare) {
+      tokenFeeShare[recipient] = {
+        baseTokenFeeShare: formatUnits(
+          bondingCurveFeeShare[recipient].baseFee +
+            (poolFeeShares[recipient]?.uniswapBaseFee || 0n),
+          baseTokenDecimals
+        ),
+        tokenFeeShare: formatEther(
+          bondingCurveFeeShare[recipient].tokenFee +
+            (poolFeeShares[recipient]?.uniswapTokenFee || 0n)
+        ),
+        bondingCurveBaseTokenFee: formatUnits(
+          bondingCurveFeeShare[recipient].baseFee,
+          baseTokenDecimals
+        ),
+        uniswapBaseTokenFee: formatEther(
+          poolFeeShares[recipient]?.uniswapBaseFee || 0n
+        ),
+        uniswapTokenFee: formatEther(
+          poolFeeShares[recipient]?.uniswapTokenFee || 0n
+        ),
+      };
+    }
+
+    return {
+      tokenFeeShare,
+      bondingCurveFeeAccumulated: {
+        baseFee: formatEther(bondingFee),
+        tokenFee: "0", // Currently our contract doesn't accumulate fees in token, only in base token
+      },
+      lpFeeAccumulated: {
+        baseFee: formatEther(uniswapBaseFee),
+        tokenFee: formatEther(uniswapTokenFee),
+      },
+    };
   }
 
   async getPositionManager(): Promise<string> {

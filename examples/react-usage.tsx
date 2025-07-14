@@ -84,6 +84,10 @@ export default function TokenDeployer() {
       });
       console.log("Sell transaction hash:", sellTx.hash);
 
+      setStatus("Getting fees...");
+      const feesTx = await sdk.read.getFees(TEST_TOKEN_ADDRESS);
+      console.log("Fees transaction hash:", feesTx);
+
       setStatus("Claiming fees...");
       const claimTx = await sdk.write.claimFee(TEST_TOKEN_ADDRESS);
       console.log("Claim transaction hash:", claimTx);
@@ -159,5 +163,5 @@ const tokenParams = {
   vestingWallet: "0x0000000000000000000000000000000000000000" as Address,
   appIdentifier: "AlphaTokenExample",
   protocolFeeBps: 500,
-  allowAutoGraduation: false,
+  allowAutoGraduation: true,
 };
