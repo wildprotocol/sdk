@@ -455,7 +455,7 @@ export class ViemDeployerReader {
       tokenFeeShare,
       bondingCurveFeeAccumulated: {
         baseFee: formatEther(bondingFee),
-        tokenFee: "0",
+        tokenFee: "0", // Currently our contract doesn't accumulate fees in token, only in base token
       },
       lpFeeAccumulated: {
         baseFee: formatEther(uniswapBaseFee),
