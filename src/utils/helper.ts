@@ -79,3 +79,15 @@ export function normalizeSupplyParams(
 
   return normalizedParams;
 }
+
+export function toBaseTokenAmount(amount: number | string): bigint {
+  const [whole, fraction = ""] = amount.toString().split(".");
+  const normalizedFraction = fraction.padEnd(36, "0").slice(0, 36); // pad/truncate to 36 decimals
+  return BigInt(whole + normalizedFraction.padStart(36, "0"));
+}
+
+export function toWei(amount: string | number): string {
+  const [whole, fraction = ""] = amount.toString().split(".");
+  const normalizedFraction = fraction.padEnd(18, "0").slice(0, 18);
+  return BigInt(whole + normalizedFraction.padStart(18, "0")).toString();
+}

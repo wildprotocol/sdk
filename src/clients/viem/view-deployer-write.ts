@@ -19,6 +19,8 @@ import {
   extractEventArgument,
   generateSalt,
   normalizeSupplyParams,
+  toBaseTokenAmount,
+  toWei,
 } from "../../utils/helper";
 import {
   ensureProtocolFee,
@@ -349,6 +351,17 @@ export class ViemDeployerWriter {
     normalizedTokenParams.graduationFeeSplits = ensureProtocolFee(
       normalizedTokenParams.graduationFeeSplits
     );
+
+    const bondingCurveParams = {
+      prices: normalizedTokenParams.bondingCurveParams.prices
+        .map(toBaseTokenAmount)
+        .map(String),
+      numSteps: normalizedTokenParams.bondingCurveParams.numSteps,
+      stepSize: toWei(
+        normalizedTokenParams.bondingCurveParams.stepSize
+      ).toString(),
+    };
+    normalizedTokenParams.bondingCurveParams = bondingCurveParams;
 
     validateLaunchTokenBondingCurveParams(normalizedTokenParams);
     validateFeeSplitArray(
