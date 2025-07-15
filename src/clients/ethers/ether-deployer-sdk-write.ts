@@ -16,7 +16,13 @@ import {
   TokenDeploymentConfig,
   TransactionOptions,
 } from "../../types";
-import { extractEventArgument, generateSalt } from "../../utils/helper";
+import {
+  extractEventArgument,
+  generateSalt,
+  normalizeSupplyParams,
+  toBaseTokenAmount,
+  toWei,
+} from "../../utils/helper";
 import {
   ensureProtocolFee,
   validateFeeSplitArray,
@@ -258,7 +264,7 @@ export class DeployerWriter {
    * Required. This fee will automatically be allocated to the protocol.
    * Example: 500 = 5%
    */
-  async launchToken(
+  async launchTokenRaw(
     params: LaunchTokenParams,
     salt?: string,
     options?: TransactionOptions
@@ -283,6 +289,101 @@ export class DeployerWriter {
     validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
 
     const config = this.buildTokenDeploymentConfig(params);
+    const finalSalt = salt ?? generateSalt();
+    validateSalt(finalSalt);
+
+    const txOverrides: any = {};
+    if (options?.gasPrice) txOverrides.gasPrice = options.gasPrice;
+
+    let gasLimit: bigint = 7_000_000n;
+    try {
+      const estimatedGas = await this.contract.launchToken.estimateGas(
+        config,
+        finalSalt,
+        txOverrides
+      );
+      gasLimit = (estimatedGas * 12n) / 10n;
+    } catch (err) {
+      console.warn(
+        "Gas estimation for launchToken failed. Using fallback gasLimit.",
+        err
+      );
+    }
+
+    const tx = await this.contract.launchToken(config, finalSalt, {
+      ...txOverrides,
+      gasLimit,
+    });
+
+    const receipt = await tx.wait();
+
+    const createdTokenAddress = extractEventArgument({
+      logs: receipt.logs,
+      eventName: "TokenLaunched",
+      argumentName: "token",
+    });
+
+    if (!createdTokenAddress) {
+      throw new Error("TokenLaunched event not found");
+    }
+
+    return { tx, createdTokenAddress };
+  }
+
+  /**
+   * Launch a new token using the bonding curve
+   * @param params Token launch parameters including supplies, fees, and configuration
+   * @param options Optional transaction parameters like gas limit and gas price
+   * @returns Transaction response
+   * Protocol fee in basis points (bps).
+   * Required. This fee will automatically be allocated to the protocol.
+   * Example: 500 = 5%
+   */
+  async launchToken(
+    params: LaunchTokenParams,
+    salt?: string,
+    options?: TransactionOptions
+  ): Promise<{ tx: ContractTransactionResponse; createdTokenAddress: string }> {
+    if (!this.signer)
+      throw new Error("Signer is required for launching tokens");
+
+    const normalizedTokenParams = normalizeSupplyParams(params);
+
+    // Adjust fee splits to ensure protocol fee is included
+    normalizedTokenParams.bondingCurveFeeSplits = ensureProtocolFee(
+      normalizedTokenParams.bondingCurveFeeSplits
+    );
+    normalizedTokenParams.poolFeeSplits = ensureProtocolFee(
+      normalizedTokenParams.poolFeeSplits
+    );
+    normalizedTokenParams.graduationFeeSplits = ensureProtocolFee(
+      normalizedTokenParams.graduationFeeSplits
+    );
+
+    const bondingCurveParams = {
+      prices: normalizedTokenParams.bondingCurveParams.prices
+        .map(toBaseTokenAmount)
+        .map(String),
+      numSteps: normalizedTokenParams.bondingCurveParams.numSteps,
+      stepSize: toWei(
+        normalizedTokenParams.bondingCurveParams.stepSize
+      ).toString(),
+    };
+    normalizedTokenParams.bondingCurveParams = bondingCurveParams;
+
+    // Validate after injecting protocol fee
+    validateLaunchTokenBondingCurveParams(normalizedTokenParams);
+    validateFeeSplitArray(
+      normalizedTokenParams.bondingCurveFeeSplits,
+      "bondingCurveFeeSplits"
+    );
+    validateFeeSplitArray(normalizedTokenParams.poolFeeSplits, "poolFeeSplits");
+    validateFeeSplitArray(
+      normalizedTokenParams.graduationFeeSplits,
+      "graduationFeeSplits"
+    );
+
+    const config = this.buildTokenDeploymentConfig(normalizedTokenParams);
     const finalSalt = salt ?? generateSalt();
     validateSalt(finalSalt);
 

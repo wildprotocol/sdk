@@ -1,6 +1,7 @@
 import { Log as EthersLog, Interface } from "ethers";
-import { Address, Log as ViemLog } from "viem";
+import { Address, parseUnits, Log as ViemLog } from "viem";
 import { STATEMANAGER_ABI } from "../abis/statemanager-abi";
+import { LaunchTokenParams } from "../types";
 
 type CompatibleLog = EthersLog | ViemLog;
 
@@ -39,4 +40,54 @@ export function generateSalt(): Address {
     Array.from(array)
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("")) as Address;
+}
+
+export function normalizeSupplyParams(
+  params: LaunchTokenParams
+): LaunchTokenParams {
+  const supplyFields = [
+    "teamSupply",
+    "bondingCurveSupply",
+    "liquidityPoolSupply",
+    "totalSupply",
+  ] as const;
+
+  const normalizedParams = { ...params };
+
+  for (const key of supplyFields) {
+    const raw = params[key];
+    if (raw == null || raw === "") {
+      throw new Error(`${key} is required and must be a valid number`);
+    }
+
+    if (typeof raw !== "string") {
+      throw new Error(`${key} must be a string`);
+    }
+
+    const trimmed = raw.trim();
+
+    if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+      throw new Error(`${key} must be a valid non-negative number`);
+    }
+
+    try {
+      normalizedParams[key] = parseUnits(trimmed, 18).toString();
+    } catch (err) {
+      throw new Error(`Failed to parse ${key}: ${err}`);
+    }
+  }
+
+  return normalizedParams;
+}
+
+export function toBaseTokenAmount(amount: number | string): bigint {
+  const [whole, fraction = ""] = amount.toString().split(".");
+  const normalizedFraction = fraction.padEnd(36, "0").slice(0, 36); // pad/truncate to 36 decimals
+  return BigInt(whole + normalizedFraction.padStart(36, "0"));
+}
+
+export function toWei(amount: string | number): string {
+  const [whole, fraction = ""] = amount.toString().split(".");
+  const normalizedFraction = fraction.padEnd(18, "0").slice(0, 18);
+  return BigInt(whole + normalizedFraction.padStart(18, "0")).toString();
 }
