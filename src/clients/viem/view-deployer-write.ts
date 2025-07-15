@@ -15,7 +15,11 @@ import {
 
 import type { WalletClient } from "viem";
 import { waitForTransactionReceipt } from "viem/actions";
-import { extractEventArgument, generateSalt } from "../../utils/helper";
+import {
+  extractEventArgument,
+  generateSalt,
+  normalizeSupplyParams,
+} from "../../utils/helper";
 import {
   ensureProtocolFee,
   validateFeeSplitArray,
@@ -242,7 +246,7 @@ export class ViemDeployerWriter {
    * Example: 500 = 5%
    */
 
-  async launchToken(
+  async launchTokenRaw(
     params: LaunchTokenParams,
     salt?: string,
     options?: TransactionOptions
@@ -262,6 +266,102 @@ export class ViemDeployerWriter {
     validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
 
     const config = this.buildTokenDeploymentConfig(params);
+    const finalSalt = salt ?? generateSalt();
+    validateSalt(finalSalt);
+
+    const args = [config, finalSalt] as const;
+    const txOverrides = this.buildTxOptions(options);
+
+    let gasPrice: bigint | undefined;
+
+    if (options?.gasPrice) {
+      gasPrice = options.gasPrice;
+    } else {
+      try {
+        gasPrice = await this.publicClient.estimateGas({
+          account: this.walletClient.account?.address as Address,
+          address: this.deployerAddress,
+          abi: DEPLOYER_ABI,
+          functionName: "launchToken",
+          args,
+          ...txOverrides,
+        });
+
+        gasPrice = (gasPrice * 12n) / 10n; // +20% buffer
+      } catch (err) {
+        console.warn(
+          "Gas estimation failed for launchToken. Using fallback.",
+          err
+        );
+        gasPrice = undefined;
+      }
+    }
+
+    const hash = await this.walletClient.writeContract({
+      address: this.deployerAddress,
+      abi: DEPLOYER_ABI,
+      functionName: "launchToken",
+      args,
+      ...txOverrides,
+      gasPrice,
+    });
+
+    const receipt = await waitForTransactionReceipt(this.walletClient, {
+      hash,
+    });
+
+    const createdTokenAddress = extractEventArgument({
+      logs: receipt.logs,
+      eventName: "TokenLaunched",
+      argumentName: "token",
+    });
+
+    if (!createdTokenAddress) {
+      throw new Error("TokenLaunched event not found");
+    }
+
+    return { tx: hash, createdTokenAddress };
+  }
+
+  /**
+   * Launch a new token using the bonding curve
+   * @param params Token launch parameters including supplies, fees, and configuration
+   * @param options Optional transaction parameters like gas limit and gas price
+   * @returns Transaction response
+   * Protocol fee in basis points (bps).
+   * Required. This fee will automatically be allocated to the protocol.
+   * Example: 500 = 5%
+   */
+
+  async launchToken(
+    params: LaunchTokenParams,
+    salt?: string,
+    options?: TransactionOptions
+  ) {
+    const normalizedTokenParams = normalizeSupplyParams(params);
+
+    normalizedTokenParams.bondingCurveFeeSplits = ensureProtocolFee(
+      normalizedTokenParams.bondingCurveFeeSplits
+    );
+    normalizedTokenParams.poolFeeSplits = ensureProtocolFee(
+      normalizedTokenParams.poolFeeSplits
+    );
+    normalizedTokenParams.graduationFeeSplits = ensureProtocolFee(
+      normalizedTokenParams.graduationFeeSplits
+    );
+
+    validateLaunchTokenBondingCurveParams(normalizedTokenParams);
+    validateFeeSplitArray(
+      normalizedTokenParams.bondingCurveFeeSplits,
+      "bondingCurveFeeSplits"
+    );
+    validateFeeSplitArray(normalizedTokenParams.poolFeeSplits, "poolFeeSplits");
+    validateFeeSplitArray(
+      normalizedTokenParams.graduationFeeSplits,
+      "graduationFeeSplits"
+    );
+
+    const config = this.buildTokenDeploymentConfig(normalizedTokenParams);
     const finalSalt = salt ?? generateSalt();
     validateSalt(finalSalt);
 
