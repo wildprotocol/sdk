@@ -37,7 +37,7 @@ export function ensureProtocolFee(
   const providedBps = splitArray.reduce((acc, split) => acc + split.bps, 0n);
 
   if (providedBps !== 10_000n) {
-    throw new Error(`Validation Error: The sum of bps must be 10,000 for ${name}.`);
+    throw new Error(`Validation Error: The sum of bps must be 10,000 for ${name}, got ${providedBps}.`);
   }
 
   const totalBps = 10_000n;
