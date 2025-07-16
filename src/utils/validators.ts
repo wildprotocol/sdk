@@ -1,5 +1,6 @@
 import { isHexString } from "ethers";
-import { Address, FeeSplit, LaunchTokenParams } from "../types";
+import { Address, FeeSplit, LaunchTokenParams, TokenDeploymentConfig } from "../types";
+import { generateSalt } from "./helper";
 
 export function validateLaunchTokenBondingCurveParams(
   params: LaunchTokenParams
@@ -21,14 +22,22 @@ export function validateLaunchTokenBondingCurveParams(
   }
 }
 
-export function ensureProtocolFee(splitArray: FeeSplit[]): FeeSplit[] {
+export function ensureProtocolFee(
+  name: string,
+  isFeeZero: boolean,
+  splitArray: FeeSplit[]
+): FeeSplit[] {
   const protocolFeeRecipient =
     "0x136F342DBC00Dc105B23ecC40b1134830720f721" as Address;
 
+  // If there are no splits, return an empty array
+  if (splitArray.length === 0 && isFeeZero) {
+    return [];
+  }
   const providedBps = splitArray.reduce((acc, split) => acc + split.bps, 0n);
 
   if (providedBps !== 10_000n) {
-    throw new Error("Validation Error: The sum of bps must be 10,000.");
+    throw new Error(`Validation Error: The sum of bps must be 10,000 for ${name}, got ${providedBps}.`);
   }
 
   const totalBps = 10_000n;
@@ -89,3 +98,92 @@ export function validateSalt(salt: string): void {
     throw new Error("Invalid salt: must be a 32-byte hex string (0x-prefixed)");
   }
 }
+
+export function processLaunchTokenParams(params: LaunchTokenParams, salt?: string): { config: TokenDeploymentConfig, salt: string } {
+  params.bondingCurveFeeSplits = ensureProtocolFee(
+    "bondingCurveFeeSplits",
+    BigInt(params.bondingCurveBuyFee) === 0n &&
+      BigInt(params.bondingCurveSellFee) === 0n,
+    params.bondingCurveFeeSplits
+  );
+  params.poolFeeSplits = ensureProtocolFee(
+    "poolFeeSplits",
+    params.poolFees === 0,
+    params.poolFeeSplits
+  );
+  params.graduationFeeSplits = ensureProtocolFee(
+    "graduationFeeSplits",
+    BigInt(params.graduationFeeBps) === 0n,
+    params.graduationFeeSplits
+  );
+  validateLaunchTokenBondingCurveParams(params);
+  validateFeeSplitArray(
+    params.bondingCurveFeeSplits,
+    "bondingCurveFeeSplits"
+  );
+  validateFeeSplitArray(params.poolFeeSplits, "poolFeeSplits");
+  validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
+
+  const config = buildTokenDeploymentConfig(params);
+  const finalSalt = salt ?? generateSalt();
+  validateSalt(finalSalt);
+  return { config, salt: finalSalt };
+}
+
+export function buildTokenDeploymentConfig(
+  params: LaunchTokenParams
+): TokenDeploymentConfig {
+  const totalSupply = (
+    BigInt(params.teamSupply) +
+    BigInt(params.bondingCurveSupply) +
+    BigInt(params.liquidityPoolSupply)
+  ).toString();
+
+  return {
+    creator: params.creator,
+    baseToken: params.baseToken,
+    name: params.name,
+    symbol: params.symbol,
+    image: params.image,
+    appIdentifier: "",
+    teamSupply: BigInt(params.teamSupply),
+    vestingStartTime: params.vestingStartTime
+      ? BigInt(params.vestingStartTime)
+      : BigInt(0),
+    vestingDuration: params.vestingDuration
+      ? BigInt(params.vestingDuration)
+      : BigInt(0),
+    vestingWallet: params.vestingWallet
+      ? params.vestingWallet
+      : "0x0000000000000000000000000000000000000000",
+    bondingCurveSupply: BigInt(params.bondingCurveSupply),
+    liquidityPoolSupply: BigInt(params.liquidityPoolSupply),
+    totalSupply: BigInt(totalSupply),
+    bondingCurveBuyFee: BigInt(params.bondingCurveBuyFee),
+    bondingCurveSellFee: BigInt(params.bondingCurveSellFee),
+    bondingCurveFeeSplits: params.bondingCurveFeeSplits.map((split) => ({
+      recipient: split.recipient,
+      bps: split.bps,
+    })),
+    bondingCurveParams: {
+      prices: params.bondingCurveParams.prices.map((price) => BigInt(price)),
+      numSteps: BigInt(params.bondingCurveParams.numSteps),
+      stepSize: BigInt(params.bondingCurveParams.stepSize),
+    },
+    allowAutoGraduation: params.allowAutoGraduation,
+    allowForcedGraduation: params.allowForcedGraduation,
+    graduationFeeBps: BigInt(params.graduationFeeBps),
+    graduationFeeSplits: params.graduationFeeSplits.map((split) => ({
+      recipient: split.recipient,
+      bps: split.bps,
+    })),
+    poolFees: params.poolFees,
+    poolFeeSplits: params.poolFeeSplits.map((split) => ({
+      recipient: split.recipient,
+      bps: split.bps,
+    })),
+    surgeFeeStartingTime: BigInt(Math.floor(Date.now() / 1000)),
+    surgeFeeDuration: BigInt(params.surgeFeeDuration),
+    maxSurgeFeeBps: BigInt(params.maxSurgeFeeBps),
+  };
+};

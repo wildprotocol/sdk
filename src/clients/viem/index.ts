@@ -1,6 +1,6 @@
 import type { ViemSDKConfig } from './types';
 import { ViemDeployerReader } from './viem-deployer-read';
-import { ViemDeployerWriter } from './view-deployer-write';
+import { ViemDeployerWriter } from './viem-deployer-write';
 
 
 class ViemDeployer {

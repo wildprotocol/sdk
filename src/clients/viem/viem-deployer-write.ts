@@ -16,12 +16,7 @@ import {
 import type { WalletClient } from "viem";
 import { waitForTransactionReceipt } from "viem/actions";
 import { extractEventArgument, generateSalt } from "../../utils/helper";
-import {
-  ensureProtocolFee,
-  validateFeeSplitArray,
-  validateLaunchTokenBondingCurveParams,
-  validateSalt,
-} from "../../utils/validators";
+import { processLaunchTokenParams } from "../../utils/validators";
 import type { ViemSDKConfig } from "./types";
 
 export class ViemDeployerWriter {
@@ -247,23 +242,7 @@ export class ViemDeployerWriter {
     salt?: string,
     options?: TransactionOptions
   ) {
-    params.bondingCurveFeeSplits = ensureProtocolFee(
-      params.bondingCurveFeeSplits
-    );
-    params.poolFeeSplits = ensureProtocolFee(params.poolFeeSplits);
-    params.graduationFeeSplits = ensureProtocolFee(params.graduationFeeSplits);
-
-    validateLaunchTokenBondingCurveParams(params);
-    validateFeeSplitArray(
-      params.bondingCurveFeeSplits,
-      "bondingCurveFeeSplits"
-    );
-    validateFeeSplitArray(params.poolFeeSplits, "poolFeeSplits");
-    validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
-
-    const config = this.buildTokenDeploymentConfig(params);
-    const finalSalt = salt ?? generateSalt();
-    validateSalt(finalSalt);
+    const { config, salt: finalSalt } = processLaunchTokenParams(params, salt);
 
     const args = [config, finalSalt] as const;
     const txOverrides = this.buildTxOptions(options);
@@ -421,63 +400,5 @@ export class ViemDeployerWriter {
       console.error("Error waiting for transaction receipt:", error);
       throw error;
     }
-  }
-
-  private buildTokenDeploymentConfig(
-    params: LaunchTokenParams
-  ): TokenDeploymentConfig {
-    const totalSupply = (
-      BigInt(params.teamSupply) +
-      BigInt(params.bondingCurveSupply) +
-      BigInt(params.liquidityPoolSupply)
-    ).toString();
-
-    return {
-      creator: params.creator,
-      baseToken: params.baseToken,
-      name: params.name,
-      symbol: params.symbol,
-      image: params.image,
-      appIdentifier: "",
-      teamSupply: BigInt(params.teamSupply),
-      vestingStartTime: params.vestingStartTime
-        ? BigInt(params.vestingStartTime)
-        : BigInt(0),
-      vestingDuration: params.vestingDuration
-        ? BigInt(params.vestingDuration)
-        : BigInt(0),
-      vestingWallet: params.vestingWallet
-        ? params.vestingWallet
-        : "0x0000000000000000000000000000000000000000",
-      bondingCurveSupply: BigInt(params.bondingCurveSupply),
-      liquidityPoolSupply: BigInt(params.liquidityPoolSupply),
-      totalSupply: BigInt(totalSupply),
-      bondingCurveBuyFee: BigInt(params.bondingCurveBuyFee),
-      bondingCurveSellFee: BigInt(params.bondingCurveSellFee),
-      bondingCurveFeeSplits: params.bondingCurveFeeSplits.map((split) => ({
-        recipient: split.recipient,
-        bps: split.bps,
-      })),
-      bondingCurveParams: {
-        prices: params.bondingCurveParams.prices.map((price) => BigInt(price)),
-        numSteps: BigInt(params.bondingCurveParams.numSteps),
-        stepSize: BigInt(params.bondingCurveParams.stepSize),
-      },
-      allowAutoGraduation: params.allowAutoGraduation,
-      allowForcedGraduation: params.allowForcedGraduation,
-      graduationFeeBps: BigInt(params.graduationFeeBps),
-      graduationFeeSplits: params.graduationFeeSplits.map((split) => ({
-        recipient: split.recipient,
-        bps: split.bps,
-      })),
-      poolFees: params.poolFees,
-      poolFeeSplits: params.poolFeeSplits.map((split) => ({
-        recipient: split.recipient,
-        bps: split.bps,
-      })),
-      surgeFeeStartingTime: BigInt(Math.floor(Date.now() / 1000)),
-      surgeFeeDuration: BigInt(params.surgeFeeDuration),
-      maxSurgeFeeBps: BigInt(params.maxSurgeFeeBps),
-    };
   }
 }
