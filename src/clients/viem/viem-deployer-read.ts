@@ -20,6 +20,7 @@ import {
   FeeSplit,
   Address,
   FeeBreakdown,
+  FeeResponse,
 } from "../../types";
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
 import { CONTRACTS } from "../../config";
@@ -343,17 +344,7 @@ export class ViemDeployerReader {
     }));
   }
 
-  async getFees(token: Address): Promise<{
-    tokenFeeShare: Record<string, FeeBreakdown>;
-    bondingCurveFeeAccumulated: {
-      baseFee: string;
-      tokenFee: string;
-    };
-    lpFeeAccumulated: {
-      baseFee: string;
-      tokenFee: string;
-    };
-  }> {
+  async getFees(token: Address): Promise<FeeResponse> {
     const [configResult, bondingResult, unclaimedResult] =
       await Promise.allSettled([
         this.getTokenDeploymentConfig(token),

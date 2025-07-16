@@ -141,10 +141,57 @@ export type SwapTokenResult = {
   receipt: ContractTransactionReceipt;
 };
 
+/**
+ * The breakdown of fees due to a specific recipient address.
+ */
 export type FeeBreakdown = {
+  /**
+   * Total amount of fee in base token (ETH/USDC etc) due to the address,
+   * both before and after graduation.
+   */
   baseTokenFeeShare: string;
+  /**
+   * Total amount of fee in the launched token due to the address,
+   * both before and after graduation.
+   */
   tokenFeeShare: string;
+  /**
+   * Base token fee accumulated before the token graduated.
+   */
   bondingCurveBaseTokenFee: string;
+  /**
+   * Base token fee accumulated after the token graduated.
+   */
   uniswapBaseTokenFee: string;
+  /**
+   * Launched token fee accumulated after the token graduated.
+   */
   uniswapTokenFee: string;
+};
+
+/**
+ * The response object containing fee information for a token.
+ */
+export type FeeResponse = {
+  /**
+   * The pay split by address to which the fee is due.
+   * Keyed by recipient address.
+   */
+  tokenFeeShare: Record<string, FeeBreakdown>;
+  /**
+   * The sum total of fees due across all the fee recipient addresses,
+   * accumulated before graduation.
+   */
+  bondingCurveFeeAccumulated: {
+    baseFee: string;
+    tokenFee: string;
+  };
+  /**
+   * The sum total of fees due across all the fee recipient addresses,
+   * accumulated after graduation (i.e., in the liquidity pool).
+   */
+  lpFeeAccumulated: {
+    baseFee: string;
+    tokenFee: string;
+  };
 };

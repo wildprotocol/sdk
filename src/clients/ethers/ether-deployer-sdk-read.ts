@@ -1,4 +1,10 @@
-import { ethers, formatEther, parseEther, BigNumberish, formatUnits } from "ethers";
+import {
+  ethers,
+  formatEther,
+  parseEther,
+  BigNumberish,
+  formatUnits,
+} from "ethers";
 import {
   BuyQuote,
   SellQuote,
@@ -8,6 +14,7 @@ import {
   TokenState,
   FeeSplit,
   FeeBreakdown,
+  FeeResponse,
 } from "../../types";
 import { CONTRACTS } from "../../config";
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
@@ -234,17 +241,7 @@ export class DeployerReader {
     }));
   }
 
-  async getFees(token: string): Promise<{
-    tokenFeeShare: Record<string, FeeBreakdown>;
-    bondingCurveFeeAccumulated: {
-      baseFee: string;
-      tokenFee: string;
-    };
-    lpFeeAccumulated: {
-      baseFee: string;
-      tokenFee: string;
-    };
-  }> {
+  async getFees(token: string): Promise<FeeResponse> {
     const [configResult, bondingResult, unclaimedResult] =
       await Promise.allSettled([
         this.getTokenDeploymentConfig(token),
@@ -268,7 +265,7 @@ export class DeployerReader {
     const computeUnclaimedFee =
       unclaimedResult.status === "fulfilled"
         ? (unclaimedResult.value as [bigint, bigint])
-        : [0n, 0n] as [bigint, bigint];
+        : ([0n, 0n] as [bigint, bigint]);
 
     if (errors.length) {
       throw new Error(errors.join("\n"));
@@ -286,18 +283,23 @@ export class DeployerReader {
     }
 
     const tokenFeeShare: Record<string, FeeBreakdown> = {};
-    const bondingCurveFeeShare: Record<string, {
-      baseFee: bigint;
-      tokenFee: bigint;
-    }> = {};
-    const poolFeeShares: Record<string, {
-      uniswapBaseFee: bigint;
-      uniswapTokenFee: bigint;
-    }> = {};
+    const bondingCurveFeeShare: Record<
+      string,
+      {
+        baseFee: bigint;
+        tokenFee: bigint;
+      }
+    > = {};
+    const poolFeeShares: Record<
+      string,
+      {
+        uniswapBaseFee: bigint;
+        uniswapTokenFee: bigint;
+      }
+    > = {};
 
     const bondingFee = BigInt(bondingCurveFeeAccumulated!);
     const [uniswapBaseFee, uniswapTokenFee] = computeUnclaimedFee;
-
 
     for (const { recipient, bps } of config!.bondingCurveFeeSplits) {
       bondingCurveFeeShare[recipient] = {
@@ -315,10 +317,22 @@ export class DeployerReader {
 
     for (const recipient in bondingCurveFeeShare) {
       tokenFeeShare[recipient] = {
-        baseTokenFeeShare: formatUnits(bondingCurveFeeShare[recipient].baseFee + poolFeeShares[recipient].uniswapBaseFee, baseTokenDecimals),
-        tokenFeeShare: formatEther(bondingCurveFeeShare[recipient].tokenFee + poolFeeShares[recipient].uniswapTokenFee),
-        bondingCurveBaseTokenFee: formatUnits(bondingCurveFeeShare[recipient].baseFee, baseTokenDecimals),
-        uniswapBaseTokenFee: formatEther(poolFeeShares[recipient].uniswapBaseFee),
+        baseTokenFeeShare: formatUnits(
+          bondingCurveFeeShare[recipient].baseFee +
+            poolFeeShares[recipient].uniswapBaseFee,
+          baseTokenDecimals
+        ),
+        tokenFeeShare: formatEther(
+          bondingCurveFeeShare[recipient].tokenFee +
+            poolFeeShares[recipient].uniswapTokenFee
+        ),
+        bondingCurveBaseTokenFee: formatUnits(
+          bondingCurveFeeShare[recipient].baseFee,
+          baseTokenDecimals
+        ),
+        uniswapBaseTokenFee: formatEther(
+          poolFeeShares[recipient].uniswapBaseFee
+        ),
         uniswapTokenFee: formatEther(poolFeeShares[recipient].uniswapTokenFee),
       };
     }
@@ -330,7 +344,7 @@ export class DeployerReader {
         tokenFee: "0", // Currently our contract doesn't accumulate fees in token, only in base token
       },
       lpFeeAccumulated: {
-        baseFee: formatEther(computeUnclaimedFee[0]), 
+        baseFee: formatEther(computeUnclaimedFee[0]),
         tokenFee: formatEther(computeUnclaimedFee[1]),
       },
     };
