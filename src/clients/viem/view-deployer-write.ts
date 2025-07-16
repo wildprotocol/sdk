@@ -248,11 +248,21 @@ export class ViemDeployerWriter {
     options?: TransactionOptions
   ) {
     params.bondingCurveFeeSplits = ensureProtocolFee(
+      "bondingCurveFeeSplits",
+      BigInt(params.bondingCurveBuyFee) === 0n &&
+        BigInt(params.bondingCurveSellFee) === 0n,
       params.bondingCurveFeeSplits
     );
-    params.poolFeeSplits = ensureProtocolFee(params.poolFeeSplits);
-    params.graduationFeeSplits = ensureProtocolFee(params.graduationFeeSplits);
-
+    params.poolFeeSplits = ensureProtocolFee(
+      "poolFeeSplits",
+      params.poolFees === 0,
+      params.poolFeeSplits
+    );
+    params.graduationFeeSplits = ensureProtocolFee(
+      "graduationFeeSplits",
+      BigInt(params.graduationFeeBps) === 0n,
+      params.graduationFeeSplits
+    );
     validateLaunchTokenBondingCurveParams(params);
     validateFeeSplitArray(
       params.bondingCurveFeeSplits,

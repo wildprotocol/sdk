@@ -21,14 +21,22 @@ export function validateLaunchTokenBondingCurveParams(
   }
 }
 
-export function ensureProtocolFee(splitArray: FeeSplit[]): FeeSplit[] {
+export function ensureProtocolFee(
+  name: string,
+  isFeeZero: boolean,
+  splitArray: FeeSplit[]
+): FeeSplit[] {
   const protocolFeeRecipient =
     "0x136F342DBC00Dc105B23ecC40b1134830720f721" as Address;
 
+  // If there are no splits, return an empty array
+  if (splitArray.length === 0 && isFeeZero) {
+    return [];
+  }
   const providedBps = splitArray.reduce((acc, split) => acc + split.bps, 0n);
 
   if (providedBps !== 10_000n) {
-    throw new Error("Validation Error: The sum of bps must be 10,000.");
+    throw new Error(`Validation Error: The sum of bps must be 10,000 for ${name}.`);
   }
 
   const totalBps = 10_000n;

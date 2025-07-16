@@ -268,11 +268,21 @@ export class DeployerWriter {
 
     // Adjust fee splits to ensure protocol fee is included
     params.bondingCurveFeeSplits = ensureProtocolFee(
+      "bondingCurveFeeSplits",
+      BigInt(params.bondingCurveBuyFee) === 0n &&
+        BigInt(params.bondingCurveSellFee) === 0n,
       params.bondingCurveFeeSplits
     );
-    params.poolFeeSplits = ensureProtocolFee(params.poolFeeSplits);
-    params.graduationFeeSplits = ensureProtocolFee(params.graduationFeeSplits);
-
+    params.poolFeeSplits = ensureProtocolFee(
+      "poolFeeSplits",
+      params.poolFees === 0,
+      params.poolFeeSplits
+    );
+    params.graduationFeeSplits = ensureProtocolFee(
+      "graduationFeeSplits",
+      BigInt(params.graduationFeeBps) === 0n,
+      params.graduationFeeSplits
+    );
     // Validate after injecting protocol fee
     validateLaunchTokenBondingCurveParams(params);
     validateFeeSplitArray(
