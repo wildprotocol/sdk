@@ -1,10 +1,4 @@
-declare global {
-  interface Window {
-    ResizeObserver: typeof ResizeObserver;
-  }
-}
-
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createChart,
   ColorType,
@@ -28,7 +22,7 @@ type TradingViewChartProps = {
   useMockIfEmpty?: boolean;
   theme?: DeepPartial<
     CandlestickStyleOptions & SeriesOptionsCommon & ChartOptions
-  >; // theming support
+  >;
 };
 
 export function TradingViewChart({
@@ -43,6 +37,7 @@ export function TradingViewChart({
 }: TradingViewChartProps) {
   const chartRef = useRef<HTMLDivElement | null>(null);
   const chartInstanceRef = useRef<IChartApi | null>(null);
+  const [hasData, setHasData] = useState<boolean | null>(null); // null = loading
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -103,6 +98,9 @@ export function TradingViewChart({
 
         if (candles.length === 0 && useMockIfEmpty) {
           series.setData(dummyCandles);
+          setHasData(true);
+        } else if (candles.length === 0) {
+          setHasData(false);
         } else {
           const formatted = candles.map((c: any) => ({
             time: c.time as Time,
@@ -113,11 +111,15 @@ export function TradingViewChart({
           })) as CandlestickData[];
 
           series.setData(formatted);
+          setHasData(true);
         }
       } catch (err) {
         console.error("Chart data error:", err);
         if (useMockIfEmpty) {
           series.setData(dummyCandles);
+          setHasData(true);
+        } else {
+          setHasData(false);
         }
       }
     };
@@ -143,7 +145,16 @@ export function TradingViewChart({
     };
   }, [token, interval, from, to, apiUrl, useMockIfEmpty, theme]);
 
-  return <div ref={chartRef} style={{ width: "100%", height: "100%" }} />;
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      {hasData === false && (
+        <div className="absolute inset-0 flex items-center justify-center text-white text-sm z-10 bg-black/50">
+          No chart data available
+        </div>
+      )}
+      <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
+    </div>
+  );
 }
 
 // Dummy fallback data
