@@ -17,11 +17,12 @@ import { waitForTransactionReceipt } from "viem/actions";
 import { extractEventArgument } from "../../utils/helper";
 import { processLaunchTokenParams } from "../../utils/validators";
 import type { ViemSDKConfig } from "./types";
+import { StdioNull } from "node:child_process";
 
 export class ViemDeployerWriter {
   protected config: ViemSDKConfig;
   protected publicClient: ReturnType<typeof createPublicClient>;
-  protected walletClient: WalletClient;
+  protected walletClient: WalletClient | null;
   protected deployerAddress: string;
   protected stateManagerAddress: string;
 
@@ -52,7 +53,7 @@ export class ViemDeployerWriter {
       });
     } else {
       // No walletClient or privateKey provided
-      this.walletClient = null as any; // Type assertion to allow null
+      this.walletClient = null;
       console.warn(
         "[ViemDeployerWriter] No walletClient provided. Writer methods will be disabled."
       );
