@@ -1,5 +1,10 @@
 import { isHexString } from "ethers";
-import { Address, FeeSplit, LaunchTokenParams, TokenDeploymentConfig } from "../types";
+import {
+  Address,
+  FeeSplit,
+  LaunchTokenParams,
+  TokenDeploymentConfig,
+} from "../types";
 import { generateSalt } from "./helper";
 
 export function validateLaunchTokenBondingCurveParams(
@@ -37,7 +42,9 @@ export function ensureProtocolFee(
   const providedBps = splitArray.reduce((acc, split) => acc + split.bps, 0n);
 
   if (providedBps !== 10_000n) {
-    throw new Error(`Validation Error: The sum of bps must be 10,000 for ${name}, got ${providedBps}.`);
+    throw new Error(
+      `Validation Error: The sum of bps must be 10,000 for ${name}, got ${providedBps}.`
+    );
   }
 
   const totalBps = 10_000n;
@@ -99,7 +106,10 @@ export function validateSalt(salt: string): void {
   }
 }
 
-export function processLaunchTokenParams(params: LaunchTokenParams, salt?: string): { config: TokenDeploymentConfig, salt: string } {
+export function processLaunchTokenParams(
+  params: LaunchTokenParams,
+  salt?: string
+): { config: TokenDeploymentConfig; salt: string } {
   params.bondingCurveFeeSplits = ensureProtocolFee(
     "bondingCurveFeeSplits",
     BigInt(params.bondingCurveBuyFee) === 0n &&
@@ -117,12 +127,16 @@ export function processLaunchTokenParams(params: LaunchTokenParams, salt?: strin
     params.graduationFeeSplits
   );
   validateLaunchTokenBondingCurveParams(params);
-  validateFeeSplitArray(
-    params.bondingCurveFeeSplits,
-    "bondingCurveFeeSplits"
-  );
+  validateFeeSplitArray(params.bondingCurveFeeSplits, "bondingCurveFeeSplits");
   validateFeeSplitArray(params.poolFeeSplits, "poolFeeSplits");
   validateFeeSplitArray(params.graduationFeeSplits, "graduationFeeSplits");
+
+  // const normalizedPrices = normalizeBondingCurvePrices(
+  //   params.bondingCurveParams.prices
+  // );
+  // console.log("Normalized prices:", normalizedPrices);
+
+  // params.bondingCurveParams.prices = normalizedPrices;
 
   const config = buildTokenDeploymentConfig(params);
   const finalSalt = salt ?? generateSalt();
@@ -186,4 +200,4 @@ export function buildTokenDeploymentConfig(
     surgeFeeDuration: BigInt(params.surgeFeeDuration),
     maxSurgeFeeBps: BigInt(params.maxSurgeFeeBps),
   };
-};
+}

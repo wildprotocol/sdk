@@ -9,13 +9,12 @@ import {
   BuyTokenParams,
   LaunchTokenParams,
   SellTokenParams,
-  TokenDeploymentConfig,
   TransactionOptions,
 } from "../../types";
 
 import type { WalletClient } from "viem";
 import { waitForTransactionReceipt } from "viem/actions";
-import { extractEventArgument, generateSalt } from "../../utils/helper";
+import { extractEventArgument } from "../../utils/helper";
 import { processLaunchTokenParams } from "../../utils/validators";
 import type { ViemSDKConfig } from "./types";
 
@@ -52,8 +51,10 @@ export class ViemDeployerWriter {
         chain: config.network === "base-sepolia" ? baseSepolia : base,
       });
     } else {
-      throw new Error(
-        "Wallet Client or Private Key is required for write operations"
+      // No walletClient or privateKey provided
+      this.walletClient = null as any; // Type assertion to allow null
+      console.warn(
+        "[ViemDeployerWriter] No walletClient provided. Writer methods will be disabled."
       );
     }
   }
@@ -66,6 +67,9 @@ export class ViemDeployerWriter {
   }
 
   async buyToken(params: BuyTokenParams, options?: TransactionOptions) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     const args = [
       params.token as Address,
       parseEther(params.amountIn),
@@ -116,6 +120,9 @@ export class ViemDeployerWriter {
   }
 
   async sellToken(params: SellTokenParams, options?: TransactionOptions) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     const args = [
       params.token as Address,
       parseEther(params.amountIn),
@@ -177,6 +184,9 @@ export class ViemDeployerWriter {
     amount: string,
     options?: TransactionOptions
   ) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     const ERC20_ABI = [
       {
         inputs: [
@@ -202,6 +212,9 @@ export class ViemDeployerWriter {
   }
 
   async approveAndSell(params: SellTokenParams, options?: TransactionOptions) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     await this.approveToken(params.token, params.amountIn, options);
     console.log("✅ Approval successful");
 
@@ -216,6 +229,9 @@ export class ViemDeployerWriter {
   }
 
   async claimFee(token: string, options?: TransactionOptions) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
@@ -242,6 +258,9 @@ export class ViemDeployerWriter {
     salt?: string,
     options?: TransactionOptions
   ) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     const { config, salt: finalSalt } = processLaunchTokenParams(params, salt);
 
     const args = [config, finalSalt] as const;
@@ -303,6 +322,9 @@ export class ViemDeployerWriter {
     allowPreGraduation: boolean = false,
     options?: TransactionOptions
   ) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     const args = [token as Address, allowPreGraduation];
     const txOverrides = this.buildTxOptions(options);
 
@@ -355,6 +377,9 @@ export class ViemDeployerWriter {
     whitelisted: boolean,
     options?: TransactionOptions
   ) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
@@ -367,6 +392,9 @@ export class ViemDeployerWriter {
   }
 
   async relinquishStateManager(options?: TransactionOptions) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
@@ -379,6 +407,9 @@ export class ViemDeployerWriter {
   }
 
   async withdrawDust(options?: TransactionOptions) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: DEPLOYER_ABI,
@@ -391,6 +422,9 @@ export class ViemDeployerWriter {
   }
 
   async waitForTransaction(txHash: `0x${string}`) {
+    if (!this.walletClient)
+      throw new Error("walletClient is required for this write operation.");
+
     try {
       const receipt = await waitForTransactionReceipt(this.publicClient, {
         hash: txHash,

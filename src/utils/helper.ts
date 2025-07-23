@@ -1,5 +1,5 @@
-import { Log as EthersLog, Interface } from "ethers";
-import { Address, Log as ViemLog } from "viem";
+import { Log as EthersLog, Interface, parseEther } from "ethers";
+import { Address, parseUnits, Log as ViemLog } from "viem";
 import { STATEMANAGER_ABI } from "../abis/statemanager-abi";
 
 type CompatibleLog = EthersLog | ViemLog;
@@ -39,4 +39,15 @@ export function generateSalt(): Address {
     Array.from(array)
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("")) as Address;
+}
+
+/**
+ * Converts human-readable ETH prices to 1e36 scaled bigint strings for bonding curve logic.
+ * @param prices - Array of price strings like "0.0000000051"
+ * @returns Array of prices as stringified bigint scaled to 1e36
+ */
+export function normalizeBondingCurvePrices(prices: string[]): string[] {
+  return prices.map(
+    (price) => parseUnits(price, 36).toString() // 18 (Ether) + 18 (custom scale)
+  );
 }

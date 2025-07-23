@@ -8,12 +8,10 @@ import {
 import { DEPLOYER_ABI } from "../../abis/deployer-abi";
 import { CONTRACTS } from "../../config";
 import {
-  Address,
   BuyTokenParams,
   LaunchTokenParams,
   SellTokenParams,
   SwapTokenResult,
-  TokenDeploymentConfig,
   TransactionOptions,
 } from "../../types";
 import { extractEventArgument, generateSalt } from "../../utils/helper";
