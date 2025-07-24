@@ -1,0 +1,126 @@
+import { PriceCurve } from "../types";
+import { getTargetPriceAndHooksSimple, InvalidTokenAmount, minTokens, priceToSqrtPriceX96, StartTickTooHigh, StartTickTooLow, SubByTooLarge } from "./tickmath";
+
+export const SCALE_FACTOR: bigint = 10n ** 36n;
+export const SCALE_FACTOR_SQRT: bigint = 10n ** 18n;
+export const DEFAULT_TICK_SPACING: bigint = 200n;
+
+export function flatCurve(startPrice: bigint, totalSupply: bigint): PriceCurve {
+    return {
+        prices: [startPrice],
+        numSteps: 1n,
+        stepSize: totalSupply
+    };
+}
+
+export function linearCurve(startPrice: bigint, endPrice: bigint, numSteps: bigint, approxBondingCurveSupply: bigint): PriceCurve {
+    _validate(approxBondingCurveSupply, numSteps, startPrice, endPrice);
+
+    const prices: bigint[] = [];
+    const stepSize = approxBondingCurveSupply / numSteps;
+    const diff = endPrice - startPrice;
+    const denom = numSteps - 1n;
+    const loMult = diff / denom;
+    const hiMult = loMult + 1n;
+    const hiCutoff = diff % denom;
+
+    let currentPrice = startPrice;
+    
+    for (let i = 0n; i < numSteps; i++) {
+        prices.push(currentPrice);
+        if (i < hiCutoff) {
+            currentPrice += hiMult;
+        } else {
+            currentPrice += loMult;
+        }
+    }
+    // Self-asserts
+    if (prices[0] !== startPrice) {
+        throw new Error("Price curve does not start at startPrice");
+    }
+    if(prices[prices.length - 1] !== endPrice) {
+        throw new Error("Price curve does not end at endPrice");
+    }
+
+    return {
+        prices: prices,
+        numSteps: numSteps,
+        stepSize: stepSize
+    };
+}
+
+export function customCurve(prices: bigint[], approxBondingCurveSupply: bigint): PriceCurve {
+    return {
+        prices: prices,
+        numSteps: BigInt(prices.length),
+        stepSize: approxBondingCurveSupply / BigInt(prices.length)
+    };
+}
+
+export function analyzeCurve(curve: PriceCurve): AnalyzeCurveResponse {
+    const baseTokenAccumulatedPerStep = curve.prices.map(price => price * curve.stepSize / 10n ** 36n);
+    const baseTokenAccumulated = baseTokenAccumulatedPerStep.reduce((a, b) => a + b, 0n);
+    const minLiquidityPoolSupply = minTokens(offsetPriceToSqrtPriceX96(curve.prices[curve.prices.length - 1]), baseTokenAccumulated, DEFAULT_TICK_SPACING);
+    return {
+        bondingCurveSupply: curve.stepSize * curve.numSteps,
+        baseTokenAccumulated: baseTokenAccumulated,
+        minLiquidityPoolSupply: minLiquidityPoolSupply
+    };
+}
+
+export class InvalidPriceCurveInput extends Error {
+    constructor() {
+        super("Invalid price curve input: numSteps must be > 1, startPrice must be < endPrice, and totalSupply must be divisible by numSteps");
+        this.name = "InvalidPriceCurveInput";
+    }
+}
+
+
+function _validate(bondingCurveSupply: bigint, numSteps: bigint, startPrice: bigint, endPrice: bigint) {
+    if (numSteps <= 1n || startPrice >= endPrice || bondingCurveSupply % numSteps != 0n) {
+        throw new InvalidPriceCurveInput();
+    }
+}
+
+export interface AnalyzeCurveResponse {
+    bondingCurveSupply: bigint;
+    baseTokenAccumulated: bigint;
+    minLiquidityPoolSupply: bigint;
+}
+
+export const validateTokenGraduatable = (
+    priceCurve: PriceCurve,
+    graduationFeeBps: bigint,
+    liquidityPoolSupply: bigint
+) => {
+    const tickSpacing = DEFAULT_TICK_SPACING;
+    const priceOffseted = priceCurve.prices[priceCurve.prices.length - 1];
+    const priceX96 = offsetPriceToSqrtPriceX96(priceOffseted);
+    const curveAnalysis = analyzeCurve(priceCurve);
+
+    const baseTokenAmount = curveAnalysis.baseTokenAccumulated;
+    const baseTokenGraduationFee = baseTokenAmount * graduationFeeBps / 10000n;
+    const baseTokenAfterFees = baseTokenAmount - baseTokenGraduationFee;
+
+    try{
+        // If this throws, the curve is not valid
+        getTargetPriceAndHooksSimple(
+            priceX96,
+            liquidityPoolSupply,
+            baseTokenAfterFees,
+            tickSpacing
+        );
+    } catch (e) {
+        if (e instanceof StartTickTooLow || e instanceof InvalidTokenAmount || e instanceof SubByTooLarge) {
+            throw new Error("Please increase target price or increase liquidity pool supply");
+        }
+        if (e instanceof StartTickTooHigh) {
+            throw new Error("Please decrease target price or increase bonding curve supply");
+        }
+        throw e;
+    }
+}
+
+export const offsetPriceToSqrtPriceX96 = (price: bigint): bigint => {
+    return priceToSqrtPriceX96(price) / SCALE_FACTOR_SQRT;
+}
