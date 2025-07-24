@@ -27,6 +27,52 @@ export class InvalidSqrtPrice extends TickMathError {
     }
 }
 
+export class InvalidTokenAmount extends TickMathError {
+    public tokenAmount: bigint;
+
+    constructor(tokenAmount: bigint) {
+        super(`Invalid token amount: ${tokenAmount}`);
+        this.name = "InvalidTokenAmount";
+        this.tokenAmount = tokenAmount;
+    }
+}
+
+export class SubByTooLarge extends TickMathError {
+    public subBy: bigint;
+    public sqrtTargetPrice: bigint;
+
+    constructor(subBy: bigint, sqrtTargetPrice: bigint) {
+        super(`Subtraction is greater than the price target: ${subBy} > ${sqrtTargetPrice}`);
+        this.name = "SubByTooLarge";
+        this.subBy = subBy;
+        this.sqrtTargetPrice = sqrtTargetPrice;
+    }
+}
+
+export class StartTickTooLow extends TickMathError {
+    public startTick: bigint;
+    public targetTick: bigint;
+
+    constructor(startTick: bigint, targetTick: bigint) {
+        super(`Start tick is too low: ${startTick} < ${targetTick}`);
+        this.name = "StartTickTooLow";
+        this.startTick = startTick;
+        this.targetTick = targetTick;
+    }
+}
+
+export class StartTickTooHigh extends TickMathError {
+    public startTick: bigint;
+    public targetTick: bigint;
+
+    constructor(startTick: bigint, targetTick: bigint) {
+        super(`Start tick is too high: ${startTick} > ${targetTick}`);
+        this.name = "StartTickTooHigh";
+        this.startTick = startTick;
+        this.targetTick = targetTick;
+    }
+}
+
 export const  MIN_TICK: bigint = -887272n;
 export const  MAX_TICK: bigint = 887272n;
 export const  MIN_TICK_SPACING: bigint = 1n;
@@ -232,10 +278,10 @@ export const quantizeTick = (tick: bigint, tickSpacing: bigint, round: boolean =
 
 export const assertTickInRange = (tick: bigint, tickSpacing: bigint = 200n): void => {
     if (tick < MIN_TICK || tick > MAX_TICK) {
-        throw new Error("Tick is out of range");
+        throw new InvalidTick(tick);
     }
     if (tick % tickSpacing !== 0n) {
-        throw new Error("Tick is not a multiple of tick spacing");
+        throw new InvalidTick(tick);
     }
 }
 
@@ -245,6 +291,64 @@ export const getTargetPriceAndHooksSimple = (
     numToken1: bigint,
     tickSpacing: bigint = 60n
 ): [bigint, bigint, bigint] => {
+    if (priceX96 < MIN_SQRT_RATIO || priceX96 > MAX_SQRT_RATIO) {
+        throw new InvalidSqrtPrice(priceX96);
+    }
+
+    const targetTick = quantizeTick(
+        getTickAtSqrtPrice(priceX96),
+        tickSpacing,
+        true
+    );
+    assertTickInRange(targetTick, tickSpacing);
+
+    const endTick = maxUsableTick(tickSpacing);
+    assertTickInRange(endTick, tickSpacing); // SAFETY: Not needed per se
+
+    const sqrtTargetPrice = getSqrtPriceAtTick(targetTick);
+    const sqrtEndPrice = getSqrtPriceAtTick(endTick);
+    const sqrtPriceRange = invertSqrtPriceX96(sqrtTargetPrice) - invertSqrtPriceX96(sqrtEndPrice);
+
+    if (numToken0 <= 0n) {
+        throw new InvalidTokenAmount(numToken0);
+    }
+
+    const subBy = sqrtPriceRange * numToken1 / numToken0;
+    if (subBy > sqrtTargetPrice) {
+        throw new SubByTooLarge(subBy, sqrtTargetPrice);
+    }
+
+    const sqrtStartPriceX96 = sqrtTargetPrice - subBy;
+
+    if (sqrtStartPriceX96 < MIN_SQRT_RATIO) {
+        throw new StartTickTooLow(sqrtStartPriceX96, MIN_SQRT_RATIO);
+    }
+
+    if (sqrtStartPriceX96 > MAX_SQRT_RATIO) {
+        throw new StartTickTooHigh(sqrtStartPriceX96, MAX_SQRT_RATIO);
+    }
+
+    let startTick = getTickAtSqrtPrice(sqrtStartPriceX96);
+    startTick = quantizeTick(startTick, tickSpacing, true);
+
+    if (startTick > targetTick) {
+        throw new Error(
+            `start_tick should be less than target_tick: ${startTick} <= ${targetTick}`
+        );
+    }
+
+    assertTickInRange(startTick, tickSpacing);
+    assertTickInRange(targetTick, tickSpacing);
+
+    return [startTick, targetTick, endTick];
+}
+
+export const minTokens = (
+    priceX96: bigint,
+    numToken1: bigint,
+    tickSpacing: bigint = 60n
+) => {
+
     if (priceX96 < MIN_SQRT_RATIO || priceX96 > MAX_SQRT_RATIO) {
         throw new Error("Invalid price_x96");
     }
@@ -263,31 +367,18 @@ export const getTargetPriceAndHooksSimple = (
     const sqrtEndPrice = getSqrtPriceAtTick(endTick);
     const sqrtPriceRange = invertSqrtPriceX96(sqrtTargetPrice) - invertSqrtPriceX96(sqrtEndPrice);
 
-    if (numToken0 <= 0n) {
+    if (numToken1 <= 0n) {
         throw new Error("Base token must be non-zero");
     }
 
-    const sqrtStartPriceX96 = sqrtTargetPrice - (sqrtPriceRange * numToken1) / numToken0;
+    const numTokenMin = ceilDiv(sqrtPriceRange * numToken1, sqrtTargetPrice + MIN_SQRT_RATIO);
 
-    if (sqrtStartPriceX96 < MIN_SQRT_RATIO || sqrtStartPriceX96 > MAX_SQRT_RATIO) {
-        throw new Error(
-            `Invalid sqrt_start_price_x96 ${sqrtStartPriceX96} with min ${MIN_SQRT_RATIO} and max ${MAX_SQRT_RATIO}`
-        );
-    }
+    const numTokenMinWithBuffer = numTokenMin * 10000n / 9999n;
+    return numTokenMinWithBuffer;
+}
 
-    let startTick = getTickAtSqrtPrice(sqrtStartPriceX96);
-    startTick = quantizeTick(startTick, tickSpacing, true);
-
-    if (startTick > targetTick) {
-        throw new Error(
-            `start_tick should be less than target_tick: ${startTick} <= ${targetTick}`
-        );
-    }
-
-    assertTickInRange(startTick, tickSpacing);
-    assertTickInRange(targetTick, tickSpacing);
-
-    return [startTick, targetTick, endTick];
+const ceilDiv = (numerator: bigint, denominator: bigint) => {
+    return (numerator + denominator - 1n) / denominator;
 }
 
 export const getTargetPriceAndHooks = (
