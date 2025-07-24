@@ -406,6 +406,6 @@ export const getTargetPriceAndHooks = (
     }
 }
 
-export const priceToSqrtPriceX96 = (price: bigint): bigint => {
+export const priceToSqrtPriceX96 = (price: bigint | number): bigint => {
     return BigInt(Math.floor(Math.sqrt(Number(price)) * Math.pow(2, 96)));
 }
