@@ -156,7 +156,7 @@ export class DeployerWriter {
 
     console.log("Sell transaction confirmed:", receipt.transactionHash);
     return {
-      success: receipt.status,
+      success: receipt.status === 1,
       transactionHash: receipt.hash,
       receipt: receipt,
     };
