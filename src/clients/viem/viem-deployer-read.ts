@@ -10,10 +10,7 @@ import {
   parseEther,
 } from "viem";
 
-import { DEPLOYER_ABI } from "../../abis/v3/deployer-abi";
-import { LP_LOCKER_ABI } from "../../abis/v3/lp-locker-abi";
-import { STATEMANAGER_ABI } from "../../abis/v3/statemanager-abi";
-import { CONTRACTS } from "../../config";
+import { CONTRACTS, LATEST_VERSION } from "../../config";
 import {
   Address,
   AutoGraduationParams,
@@ -27,6 +24,7 @@ import {
   TokenState,
 } from "../../types";
 import type { ViemSDKConfig } from "./types";
+import { ABIS } from "../../abis";
 
 export class ViemDeployerReader {
   protected publicClient: ReturnType<typeof createPublicClient>;
@@ -34,12 +32,25 @@ export class ViemDeployerReader {
   protected stateManagerAddress: Address;
   protected lpLockerAddress: Address;
 
+  private DEPLOYER_ABI: any;
+  private STATEMANAGER_ABI: any;
+  private LP_LOCKER_ABI: any;
+
   constructor(config: ViemSDKConfig) {
     if (!config.rpcUrl) throw new Error("RPC URL is required");
 
-    const networkContracts = CONTRACTS[config.version][config.network];
+    const networkContracts =
+      CONTRACTS[config.version ?? LATEST_VERSION][config.network];
     if (!networkContracts)
       throw new Error(`Unsupported network: ${config.network}`);
+
+    const abiVersion = ABIS[config.version ?? LATEST_VERSION];
+    if (!abiVersion)
+      throw new Error(`Unsupported ABI version: ${config.version}`);
+
+    this.DEPLOYER_ABI = abiVersion.DEPLOYER_ABI;
+    this.STATEMANAGER_ABI = abiVersion.STATEMANAGER_ABI;
+    this.LP_LOCKER_ABI = abiVersion.LP_LOCKER_ABI;
 
     this.publicClient = createPublicClient({
       transport: http(config.rpcUrl),
@@ -53,58 +64,58 @@ export class ViemDeployerReader {
 
   private async callDeployer<
     functionName extends ContractFunctionName<
-      typeof DEPLOYER_ABI,
+      typeof this.DEPLOYER_ABI,
       "pure" | "view"
     >,
     const args extends ContractFunctionArgs<
-      typeof DEPLOYER_ABI,
+      typeof this.DEPLOYER_ABI,
       "pure" | "view",
       functionName
     >,
   >(functionName: functionName, args: args): Promise<any> {
     return await this.publicClient.readContract({
       address: this.deployerAddress,
-      abi: DEPLOYER_ABI,
+      abi: this.DEPLOYER_ABI,
       functionName: functionName,
-      args: args,
+      args: args as any[],
     });
   }
 
   private async callStateManager<
     functionName extends ContractFunctionName<
-      typeof STATEMANAGER_ABI,
+      typeof this.STATEMANAGER_ABI,
       "pure" | "view"
     >,
     const args extends ContractFunctionArgs<
-      typeof STATEMANAGER_ABI,
+      typeof this.STATEMANAGER_ABI,
       "pure" | "view",
       functionName
     >,
   >(functionName: functionName, args: args): Promise<any> {
     return await this.publicClient.readContract({
       address: this.stateManagerAddress,
-      abi: STATEMANAGER_ABI,
+      abi: this.STATEMANAGER_ABI,
       functionName: functionName,
-      args: args,
+      args: args as any[],
     });
   }
 
   private async callLpLocker<
     functionName extends ContractFunctionName<
-      typeof LP_LOCKER_ABI,
+      typeof this.LP_LOCKER_ABI,
       "pure" | "view"
     >,
     const args extends ContractFunctionArgs<
-      typeof LP_LOCKER_ABI,
+      typeof this.LP_LOCKER_ABI,
       "pure" | "view",
       functionName
     >,
   >(functionName: functionName, args: args): Promise<any> {
     return await this.publicClient.readContract({
       address: this.lpLockerAddress,
-      abi: LP_LOCKER_ABI,
+      abi: this.LP_LOCKER_ABI,
       functionName: functionName,
-      args: args,
+      args: args as any[],
     });
   }
 
@@ -114,7 +125,7 @@ export class ViemDeployerReader {
       await this.publicClient.simulateContract({
         address: this.deployerAddress,
         account: this.deployerAddress,
-        abi: DEPLOYER_ABI,
+        abi: this.DEPLOYER_ABI,
         functionName: "buyQuote",
         args: [token as `0x${string}`, parseEther(amountIn)],
       });
@@ -154,7 +165,7 @@ export class ViemDeployerReader {
       await this.publicClient.simulateContract({
         address: this.deployerAddress,
         account: this.deployerAddress,
-        abi: DEPLOYER_ABI,
+        abi: this.DEPLOYER_ABI,
         functionName: "sellQuote",
         args: [token as `0x${string}`, parseEther(amountIn)],
       });

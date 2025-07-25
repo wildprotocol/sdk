@@ -2,8 +2,7 @@ import { createPublicClient, createWalletClient, http, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
 
-import { DEPLOYER_ABI } from "../../abis/v3/deployer-abi";
-import { CONTRACTS } from "../../config";
+import { CONTRACTS, LATEST_VERSION } from "../../config";
 import {
   Address,
   BuyTokenParams,
@@ -14,6 +13,7 @@ import {
 
 import type { WalletClient } from "viem";
 import { waitForTransactionReceipt } from "viem/actions";
+import { ABIS } from "../../abis";
 import { extractEventArgument } from "../../utils/helper";
 import { processLaunchTokenParams } from "../../utils/validators";
 import type { ViemSDKConfig } from "./types";
@@ -25,13 +25,24 @@ export class ViemDeployerWriter {
   protected deployerAddress: string;
   protected stateManagerAddress: string;
 
+  private DEPLOYER_ABI: any;
+  private STATEMANAGER_ABI: any;
+
   constructor(config: ViemSDKConfig) {
     this.config = config;
 
     if (!config.rpcUrl) throw new Error("RPC URL is required");
-    const networkContracts = CONTRACTS[config.version][config.network];
+    const networkContracts =
+      CONTRACTS[config.version ?? LATEST_VERSION][config.network];
     if (!networkContracts)
       throw new Error(`Unsupported network: ${config.network}`);
+
+    const abiVersion = ABIS[config.version ?? LATEST_VERSION];
+    if (!abiVersion)
+      throw new Error(`Unsupported ABI version: ${config.version}`);
+
+    this.DEPLOYER_ABI = abiVersion.DEPLOYER_ABI;
+    this.STATEMANAGER_ABI = abiVersion.STATEMANAGER_ABI;
 
     this.deployerAddress = networkContracts.DEPLOYER_ADDRESS;
     this.stateManagerAddress = networkContracts.STATE_MANAGER_ADDRESS;
@@ -83,7 +94,7 @@ export class ViemDeployerWriter {
       gasPrice = await this.publicClient.estimateGas({
         account: this.walletClient.account?.address as Address,
         address: this.deployerAddress,
-        abi: DEPLOYER_ABI,
+        abi: this.DEPLOYER_ABI,
         functionName: "buyToken",
         args,
         ...overrides,
@@ -96,7 +107,7 @@ export class ViemDeployerWriter {
 
     const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
-      abi: DEPLOYER_ABI,
+      abi: this.DEPLOYER_ABI,
       functionName: "buyToken",
       args,
       ...overrides,
@@ -135,7 +146,7 @@ export class ViemDeployerWriter {
         gasPrice = await this.publicClient.estimateGas({
           account: this.walletClient.account?.address as Address,
           address: this.deployerAddress,
-          abi: DEPLOYER_ABI,
+          abi: this.DEPLOYER_ABI,
           functionName: "sellToken",
           args,
           ...txOverrides,
@@ -153,7 +164,7 @@ export class ViemDeployerWriter {
 
     const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
-      abi: DEPLOYER_ABI,
+      abi: this.DEPLOYER_ABI,
       functionName: "sellToken",
       args,
       ...txOverrides,
@@ -217,7 +228,7 @@ export class ViemDeployerWriter {
   async claimFee(token: string, options?: TransactionOptions) {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
-      abi: DEPLOYER_ABI,
+      abi: this.DEPLOYER_ABI,
       functionName: "claimFee",
       args: [token as `0x${string}`],
       ...this.buildTxOptions(options),
@@ -255,7 +266,7 @@ export class ViemDeployerWriter {
         gasPrice = await this.publicClient.estimateGas({
           account: this.walletClient.account?.address as Address,
           address: this.deployerAddress,
-          abi: DEPLOYER_ABI,
+          abi: this.DEPLOYER_ABI,
           functionName: "launchToken",
           args,
           ...txOverrides,
@@ -273,7 +284,7 @@ export class ViemDeployerWriter {
 
     const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
-      abi: DEPLOYER_ABI,
+      abi: this.DEPLOYER_ABI,
       functionName: "launchToken",
       args,
       ...txOverrides,
@@ -288,6 +299,7 @@ export class ViemDeployerWriter {
       logs: receipt.logs,
       eventName: "TokenLaunched",
       argumentName: "token",
+      abi: this.STATEMANAGER_ABI,
     });
 
     if (!createdTokenAddress) {
@@ -314,7 +326,7 @@ export class ViemDeployerWriter {
         gasPrice = await this.publicClient.estimateGas({
           account: this.walletClient.account?.address as Address,
           address: this.deployerAddress,
-          abi: DEPLOYER_ABI,
+          abi: this.DEPLOYER_ABI,
           functionName: "graduateToken",
           args,
           ...txOverrides,
@@ -332,7 +344,7 @@ export class ViemDeployerWriter {
 
     const hash = await this.walletClient.writeContract({
       address: this.deployerAddress,
-      abi: DEPLOYER_ABI,
+      abi: this.DEPLOYER_ABI,
       functionName: "graduateToken",
       args,
       ...txOverrides,
@@ -356,7 +368,7 @@ export class ViemDeployerWriter {
   ) {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
-      abi: DEPLOYER_ABI,
+      abi: this.DEPLOYER_ABI,
       functionName: "setBaseTokenWhitelist",
       args: [token as `0x${string}`, whitelisted],
       ...this.buildTxOptions(options),
@@ -368,7 +380,7 @@ export class ViemDeployerWriter {
   async relinquishStateManager(options?: TransactionOptions) {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
-      abi: DEPLOYER_ABI,
+      abi: this.DEPLOYER_ABI,
       functionName: "relinquishStateManager",
       args: [],
       ...this.buildTxOptions(options),
@@ -380,7 +392,7 @@ export class ViemDeployerWriter {
   async withdrawDust(options?: TransactionOptions) {
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
-      abi: DEPLOYER_ABI,
+      abi: this.DEPLOYER_ABI,
       functionName: "withdrawDust",
       args: [],
       ...this.buildTxOptions(options),

@@ -5,8 +5,8 @@ import {
   parseEther,
 } from "ethers";
 
-import { DEPLOYER_ABI } from "../../abis/v3/deployer-abi";
-import { CONTRACTS } from "../../config";
+import { ABIS } from "../../abis";
+import { CONTRACTS, LATEST_VERSION } from "../../config";
 import {
   BuyTokenParams,
   LaunchTokenParams,
@@ -27,12 +27,23 @@ export class DeployerWriter {
   private provider: ethers.Provider;
   private signer?: ethers.Signer;
 
+  private DEPLOYER_ABI: any;
+  private STATEMANAGER_ABI: any;
+
   constructor(config: EthersSDKConfig) {
     if (!config.rpcUrl) throw new Error("RPC URL is required");
 
-    const networkContracts = CONTRACTS[config.version][config.network];
+    const networkContracts =
+      CONTRACTS[config.version ?? LATEST_VERSION][config.network];
     if (!networkContracts)
       throw new Error(`Unsupported network: ${config.network}`);
+
+    const abiVersion = ABIS[config.version ?? LATEST_VERSION];
+    if (!abiVersion)
+      throw new Error(`Unsupported ABI version: ${config.version}`);
+
+    this.DEPLOYER_ABI = abiVersion.DEPLOYER_ABI;
+    this.STATEMANAGER_ABI = abiVersion.STATEMANAGER_ABI;
 
     this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
 
@@ -46,7 +57,7 @@ export class DeployerWriter {
 
     this.contract = new ethers.Contract(
       networkContracts.DEPLOYER_ADDRESS,
-      DEPLOYER_ABI,
+      this.DEPLOYER_ABI,
       signerOrProvider
     );
   }
@@ -289,6 +300,7 @@ export class DeployerWriter {
       logs: receipt.logs,
       eventName: "TokenLaunched",
       argumentName: "token",
+      abi: this.STATEMANAGER_ABI,
     });
 
     if (!createdTokenAddress) {

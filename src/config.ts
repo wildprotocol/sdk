@@ -6,6 +6,7 @@ export interface ContractAddresses {
 
 export type SupportedVersions = "v2" | "v3";
 export type SupportedNetworks = "base-sepolia" | "base-mainnet";
+export const LATEST_VERSION = "v3";
 
 export const CONTRACTS: Record<
   SupportedVersions,
