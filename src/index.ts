@@ -3,6 +3,7 @@ export { DeployerSDK } from "./deployer-sdk";
 
 export { EthersDeployer } from "./clients/ethers";
 export { ViemDeployer } from "./clients/viem";
+export * as BondingCurve from "./curve";
 
 // Type exports
 export * from "./types";
