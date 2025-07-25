@@ -49,6 +49,34 @@ export function linearCurve(startPrice: bigint, endPrice: bigint, numSteps: bigi
     };
 }
 
+export function quadraticCurve(startPrice: bigint, endPrice: bigint, numSteps: bigint, approxBondingCurveSupply: bigint): PriceCurve {
+    _validate(approxBondingCurveSupply, numSteps, startPrice, endPrice);
+
+    const prices: bigint[] = [];
+    const diff = endPrice - startPrice;
+    const denom = (numSteps - 1n) * (numSteps - 1n);
+
+    let idx2 = 0n;
+    for (let i = 0n; i < numSteps; i++) {
+        prices.push(startPrice + diff * idx2 / denom);
+        idx2 += 2n * i + 1n;
+    }
+
+    // Self-asserts
+    if (prices[0] !== startPrice) {
+        throw new Error("Price curve does not start at startPrice");
+    }
+    if (prices[prices.length - 1] !== endPrice) {
+        throw new Error("Price curve does not end at endPrice");
+    }
+
+    return {
+        prices: prices,
+        numSteps: numSteps,
+        stepSize: approxBondingCurveSupply / numSteps
+    };
+}
+
 export function customCurve(prices: bigint[], approxBondingCurveSupply: bigint): PriceCurve {
     return {
         prices: prices,
@@ -70,14 +98,14 @@ export function analyzeCurve(curve: PriceCurve): AnalyzeCurveResponse {
 
 export class InvalidPriceCurveInput extends Error {
     constructor() {
-        super("Invalid price curve input: numSteps must be > 1, startPrice must be < endPrice, and totalSupply must be divisible by numSteps");
+        super("Invalid price curve input: numSteps must be > 1, startPrice must be < endPrice, and bonding curve supply must be divisible by numSteps");
         this.name = "InvalidPriceCurveInput";
     }
 }
 
 
 function _validate(bondingCurveSupply: bigint, numSteps: bigint, startPrice: bigint, endPrice: bigint) {
-    if (numSteps <= 1n || startPrice >= endPrice || bondingCurveSupply % numSteps != 0n) {
+    if (numSteps <= 1n || startPrice >= endPrice || bondingCurveSupply % numSteps !== 0n) {
         throw new InvalidPriceCurveInput();
     }
 }
