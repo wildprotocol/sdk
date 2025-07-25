@@ -1,6 +1,6 @@
 import { Log as EthersLog, Interface } from "ethers";
 import { Address, Log as ViemLog } from "viem";
-import { STATEMANAGER_ABI } from "../abis/statemanager-abi";
+import { STATEMANAGER_ABI } from "../abis/v3/statemanager-abi";
 
 type CompatibleLog = EthersLog | ViemLog;
 

@@ -5,18 +5,16 @@ import {
   parseEther,
 } from "ethers";
 
-import { DEPLOYER_ABI } from "../../abis/deployer-abi";
+import { DEPLOYER_ABI } from "../../abis/v3/deployer-abi";
 import { CONTRACTS } from "../../config";
 import {
-  Address,
   BuyTokenParams,
   LaunchTokenParams,
   SellTokenParams,
   SwapTokenResult,
-  TokenDeploymentConfig,
   TransactionOptions,
 } from "../../types";
-import { extractEventArgument, generateSalt } from "../../utils/helper";
+import { extractEventArgument } from "../../utils/helper";
 import { processLaunchTokenParams } from "../../utils/validators";
 import type { EthersSDKConfig } from "./types";
 
@@ -32,7 +30,7 @@ export class DeployerWriter {
   constructor(config: EthersSDKConfig) {
     if (!config.rpcUrl) throw new Error("RPC URL is required");
 
-    const networkContracts = CONTRACTS[config.network];
+    const networkContracts = CONTRACTS[config.version][config.network];
     if (!networkContracts)
       throw new Error(`Unsupported network: ${config.network}`);
 

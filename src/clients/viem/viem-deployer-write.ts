@@ -2,20 +2,19 @@ import { createPublicClient, createWalletClient, http, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
 
-import { DEPLOYER_ABI } from "../../abis/deployer-abi";
+import { DEPLOYER_ABI } from "../../abis/v3/deployer-abi";
 import { CONTRACTS } from "../../config";
 import {
   Address,
   BuyTokenParams,
   LaunchTokenParams,
   SellTokenParams,
-  TokenDeploymentConfig,
   TransactionOptions,
 } from "../../types";
 
 import type { WalletClient } from "viem";
 import { waitForTransactionReceipt } from "viem/actions";
-import { extractEventArgument, generateSalt } from "../../utils/helper";
+import { extractEventArgument } from "../../utils/helper";
 import { processLaunchTokenParams } from "../../utils/validators";
 import type { ViemSDKConfig } from "./types";
 
@@ -30,7 +29,7 @@ export class ViemDeployerWriter {
     this.config = config;
 
     if (!config.rpcUrl) throw new Error("RPC URL is required");
-    const networkContracts = CONTRACTS[config.network];
+    const networkContracts = CONTRACTS[config.version][config.network];
     if (!networkContracts)
       throw new Error(`Unsupported network: ${config.network}`);
 

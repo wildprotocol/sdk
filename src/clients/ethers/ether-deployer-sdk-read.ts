@@ -17,10 +17,10 @@ import {
   FeeResponse,
 } from "../../types";
 import { CONTRACTS } from "../../config";
-import { DEPLOYER_ABI } from "../../abis/deployer-abi";
-import { STATEMANAGER_ABI } from "../../abis/statemanager-abi";
+import { DEPLOYER_ABI } from "../../abis/v3/deployer-abi";
+import { STATEMANAGER_ABI } from "../../abis/v3/statemanager-abi";
 import type { EthersSDKConfig } from "./types";
-import { LP_LOCKER_ABI } from "../../abis/lp-locker-abi";
+import { LP_LOCKER_ABI } from "../../abis/v3/lp-locker-abi";
 
 export class DeployerReader {
   protected contract: ethers.Contract;
@@ -31,7 +31,7 @@ export class DeployerReader {
   constructor(config: EthersSDKConfig) {
     if (!config.rpcUrl) throw new Error("RPC URL is required");
 
-    const networkContracts = CONTRACTS[config.network];
+    const networkContracts = CONTRACTS[config.version][config.network];
     if (!networkContracts)
       throw new Error(`Unsupported network: ${config.network}`);
 

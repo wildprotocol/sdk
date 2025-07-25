@@ -1,32 +1,32 @@
 import {
+  BaseError,
+  ContractFunctionArgs,
+  ContractFunctionName,
+  ContractFunctionRevertedError,
   createPublicClient,
+  formatEther,
+  formatUnits,
   http,
   parseEther,
-  formatEther,
-  BaseError,
-  ContractFunctionRevertedError,
-  ContractFunctionName,
-  ContractFunctionArgs,
-  formatUnits,
 } from "viem";
 
+import { DEPLOYER_ABI } from "../../abis/v3/deployer-abi";
+import { LP_LOCKER_ABI } from "../../abis/v3/lp-locker-abi";
+import { STATEMANAGER_ABI } from "../../abis/v3/statemanager-abi";
+import { CONTRACTS } from "../../config";
 import {
-  BuyQuote,
-  SellQuote,
-  AutoGraduationParams,
-  PoolKey,
-  TokenDeploymentConfig,
-  TokenState,
-  FeeSplit,
   Address,
+  AutoGraduationParams,
+  BuyQuote,
   FeeBreakdown,
   FeeResponse,
+  FeeSplit,
+  PoolKey,
+  SellQuote,
+  TokenDeploymentConfig,
+  TokenState,
 } from "../../types";
-import { DEPLOYER_ABI } from "../../abis/deployer-abi";
-import { CONTRACTS } from "../../config";
-import { STATEMANAGER_ABI } from "../../abis/statemanager-abi";
 import type { ViemSDKConfig } from "./types";
-import { LP_LOCKER_ABI } from "../../abis/lp-locker-abi";
 
 export class ViemDeployerReader {
   protected publicClient: ReturnType<typeof createPublicClient>;
@@ -37,7 +37,7 @@ export class ViemDeployerReader {
   constructor(config: ViemSDKConfig) {
     if (!config.rpcUrl) throw new Error("RPC URL is required");
 
-    const networkContracts = CONTRACTS[config.network];
+    const networkContracts = CONTRACTS[config.version][config.network];
     if (!networkContracts)
       throw new Error(`Unsupported network: ${config.network}`);
 
