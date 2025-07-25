@@ -15,6 +15,8 @@ import {
   SCALE_FACTOR,
   SCALE_FACTOR_SQRT,
   AnalyzeCurveResponse,
+  formatBaseTokenAmountForCurve,
+  formatCurveToBaseTokenStringAmount,
   DEFAULT_TICK_SPACING,
 } from "./curvemath";
 
@@ -31,6 +33,8 @@ export {
   analyzeCurveUntil,
   validateTokenGraduatable,
   offsetPriceToSqrtPriceX96,
+  formatBaseTokenAmountForCurve,
+  formatCurveToBaseTokenStringAmount,
   InvalidPriceCurveInput,
   SCALE_FACTOR,
   SCALE_FACTOR_SQRT,
