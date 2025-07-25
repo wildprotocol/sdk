@@ -1,9 +1,14 @@
-import { PriceCurve } from "../types";
+import { BaseTokenConfig, PriceCurve } from "../types";
 import { getTargetPriceAndHooksSimple, InvalidTokenAmount, minTokens, priceToSqrtPriceX96, StartTickTooHigh, StartTickTooLow, SubByTooLarge } from "./tickmath";
 import { sqrt } from "./bigintmath";
+import { SUPPORTED_BASE_TOKENS } from "../config";
+import { parseUnits } from "./parseUnits";
+import { formatUnits } from "./formatUnits";
 
-export const SCALE_FACTOR: bigint = 10n ** 36n;
-export const SCALE_FACTOR_SQRT: bigint = 10n ** 18n;
+export const MINTED_TOKEN_DECIMALS: bigint = 18n;
+export const SCALE_EXPONENT: bigint = 36n; // MUST BE EVEN
+export const SCALE_FACTOR: bigint = 10n ** SCALE_EXPONENT;
+export const SCALE_FACTOR_SQRT: bigint = 10n ** (SCALE_EXPONENT / 2n);
 export const DEFAULT_TICK_SPACING: bigint = 200n;
 
 export enum CurveType {
@@ -37,6 +42,41 @@ export const initlaizeCurve = (curveType: CurveType, startPrice: bigint, endPric
         default:
             throw new Error("Invalid curve type");
     }
+}
+
+export const getBaseTokenDetails = (baseTokenChainId: number, baseTokenAddress: string): BaseTokenConfig => {
+    const baseToken = SUPPORTED_BASE_TOKENS.find(token => token.chainId === baseTokenChainId && token.address === baseTokenAddress);
+    if (!baseToken) {
+        throw new Error("Base token not found");
+    }
+    return baseToken;
+}
+
+/**
+ * Formats a base token string precise amount to a curve price entry.
+ * @param baseTokenAmountFormattedString - The base token string amount
+ * @param baseTokenChainId - The chain id of the base token
+ * @param baseTokenAddress - The address of the base token
+ * @returns The formatted curve price entry
+ */
+export const formatBaseTokenAmountForCurve = (baseTokenAmountFormattedString: string, baseTokenChainId: number, baseTokenAddress: string): bigint => {
+    const baseToken = getBaseTokenDetails(baseTokenChainId, baseTokenAddress);
+    const decimals = SCALE_EXPONENT + BigInt(baseToken.decimals) - MINTED_TOKEN_DECIMALS;
+    const baseTokenAmount = parseUnits(baseTokenAmountFormattedString, Number(decimals));
+    return baseTokenAmount;
+}
+
+/**
+ * Formats a curve price entry to a base token amount. In string for precision
+ * @param curvePrice - The price of the curve
+ * @param baseTokenChainId - The chain id of the base token
+ * @param baseTokenAddress - The address of the base token
+ * @returns The formatted base token string amount
+ */
+export const formatCurveToBaseTokenStringAmount = (curvePrice: bigint, baseTokenChainId: number, baseTokenAddress: string): string => {
+    const baseToken = getBaseTokenDetails(baseTokenChainId, baseTokenAddress);
+    const decimals = SCALE_EXPONENT + BigInt(baseToken.decimals) - MINTED_TOKEN_DECIMALS;
+    return formatUnits(curvePrice, Number(decimals));
 }
 
 export function flatCurve(startPrice: bigint, totalSupply: bigint): PriceCurve {

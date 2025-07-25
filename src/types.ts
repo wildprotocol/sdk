@@ -195,3 +195,12 @@ export type FeeResponse = {
     tokenFee: string;
   };
 };
+
+export interface BaseTokenConfig {
+  chainId: number;
+  address: string;
+  name: string;
+  symbol: string;
+  logoURI?: string;
+  decimals: number;
+}
