@@ -1,9 +1,43 @@
 import { PriceCurve } from "../types";
 import { getTargetPriceAndHooksSimple, InvalidTokenAmount, minTokens, priceToSqrtPriceX96, StartTickTooHigh, StartTickTooLow, SubByTooLarge } from "./tickmath";
+import { sqrt } from "./bigintmath";
 
 export const SCALE_FACTOR: bigint = 10n ** 36n;
 export const SCALE_FACTOR_SQRT: bigint = 10n ** 18n;
 export const DEFAULT_TICK_SPACING: bigint = 200n;
+
+export enum CurveType {
+    FLAT = "flat",
+    LINEAR = "linear",
+    QUADRATIC = "quadratic",
+    CUBIC = "cubic",
+    SQUARE_ROOT = "square_root"
+}
+
+export const initlaizeCurve = (curveType: CurveType, startPrice: bigint, endPrice: bigint, numSteps: bigint, approxBondingCurveSupply: bigint): PriceCurve => {
+    if (numSteps < 1n) {
+        throw new Error("Num steps must be greater than 0");
+    }
+
+    const actualBondingCurveSupply = (approxBondingCurveSupply / numSteps) * numSteps;
+    switch (curveType) {
+        case CurveType.FLAT:
+            if (startPrice !== endPrice || numSteps !== 1n) {
+                throw new Error("Flat curve must have startPrice === endPrice and numSteps === 1");
+            }
+            return flatCurve(startPrice, actualBondingCurveSupply);
+        case CurveType.LINEAR:
+            return linearCurve(startPrice, endPrice, numSteps, actualBondingCurveSupply);
+        case CurveType.QUADRATIC:
+            return quadraticCurve(startPrice, endPrice, numSteps, actualBondingCurveSupply);
+        case CurveType.CUBIC:
+            return acceleratingPowerCurve(startPrice, endPrice, numSteps, actualBondingCurveSupply);
+        case CurveType.SQUARE_ROOT:
+            return sqrtCurve(startPrice, endPrice, numSteps, actualBondingCurveSupply);
+        default:
+            throw new Error("Invalid curve type");
+    }
+}
 
 export function flatCurve(startPrice: bigint, totalSupply: bigint): PriceCurve {
     return {
@@ -13,11 +47,11 @@ export function flatCurve(startPrice: bigint, totalSupply: bigint): PriceCurve {
     };
 }
 
-export function linearCurve(startPrice: bigint, endPrice: bigint, numSteps: bigint, approxBondingCurveSupply: bigint): PriceCurve {
-    _validate(approxBondingCurveSupply, numSteps, startPrice, endPrice);
+export function linearCurve(startPrice: bigint, endPrice: bigint, numSteps: bigint, bondingCurveSupply: bigint): PriceCurve {
+    _validate(bondingCurveSupply, numSteps, startPrice, endPrice);
 
     const prices: bigint[] = [];
-    const stepSize = approxBondingCurveSupply / numSteps;
+    const stepSize = bondingCurveSupply / numSteps;
     const diff = endPrice - startPrice;
     const denom = numSteps - 1n;
     const loMult = diff / denom;
@@ -49,8 +83,8 @@ export function linearCurve(startPrice: bigint, endPrice: bigint, numSteps: bigi
     };
 }
 
-export function quadraticCurve(startPrice: bigint, endPrice: bigint, numSteps: bigint, approxBondingCurveSupply: bigint): PriceCurve {
-    _validate(approxBondingCurveSupply, numSteps, startPrice, endPrice);
+export function quadraticCurve(startPrice: bigint, endPrice: bigint, numSteps: bigint, bondingCurveSupply: bigint): PriceCurve {
+    _validate(bondingCurveSupply, numSteps, startPrice, endPrice);
 
     const prices: bigint[] = [];
     const diff = endPrice - startPrice;
@@ -73,15 +107,74 @@ export function quadraticCurve(startPrice: bigint, endPrice: bigint, numSteps: b
     return {
         prices: prices,
         numSteps: numSteps,
-        stepSize: approxBondingCurveSupply / numSteps
+        stepSize: bondingCurveSupply / numSteps
     };
 }
 
-export function customCurve(prices: bigint[], approxBondingCurveSupply: bigint): PriceCurve {
+// Cubic curve
+export function acceleratingPowerCurve(startPrice: bigint, endPrice: bigint, numSteps: bigint, bondingCurveSupply: bigint): PriceCurve {
+    _validate(bondingCurveSupply, numSteps, startPrice, endPrice);
+
+    const prices: bigint[] = [];
+    const diff = endPrice - startPrice;
+    const denom = numSteps - 1n;
+    const denom3 = denom * denom * denom;
+
+    let i2 = 0n;
+    let i3 = 0n;
+
+    for (let i = 0n; i < numSteps; i++) {
+        prices.push(startPrice + diff * i3 / denom3);
+        i3 += 3n * (i2 + i) + 1n;
+        i2 += 2n * i + 1n;
+    }
+
+    // Self-asserts
+    if (prices[0] !== startPrice) {
+        throw new Error("Price curve does not start at startPrice");
+    }
+    if (prices[prices.length - 1] !== endPrice) {
+        throw new Error("Price curve does not end at endPrice");
+    }
+
+    return {
+        prices: prices,
+        numSteps: numSteps,
+        stepSize: bondingCurveSupply / numSteps
+    };
+}
+
+// Square root curve
+export function sqrtCurve(startPrice: bigint, endPrice: bigint, numSteps: bigint, bondingCurveSupply: bigint): PriceCurve {
+    _validate(bondingCurveSupply, numSteps, startPrice, endPrice);
+
+    const prices: bigint[] = [];
+    const diff = endPrice - startPrice;
+    for (let i = 0n; i < numSteps; i++) {
+        prices.push(startPrice + sqrt(diff * diff * i / numSteps));
+    }
+    prices[prices.length - 1] = endPrice;
+
+    // Self-asserts
+    if (prices[0] !== startPrice) {
+        throw new Error("Price curve does not start at startPrice");
+    }
+    if (prices[prices.length - 1] !== endPrice) {
+        throw new Error("Price curve does not end at endPrice");
+    }
+
+    return {
+        prices: prices,
+        numSteps: numSteps,
+        stepSize: bondingCurveSupply / numSteps
+    };
+}
+
+export function customCurve(prices: bigint[], bondingCurveSupply: bigint): PriceCurve {
     return {
         prices: prices,
         numSteps: BigInt(prices.length),
-        stepSize: approxBondingCurveSupply / BigInt(prices.length)
+        stepSize: bondingCurveSupply / BigInt(prices.length)
     };
 }
 
