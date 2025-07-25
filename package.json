@@ -35,7 +35,8 @@
   "author": "Wildcard Team",
   "license": "BUSL-1.1",
   "dependencies": {
-    "axios": "^1.7.0",
+    "axios": "^1.10.0",
+    "form-data": "^4.0.4",
     "lightweight-charts": "^5.0.8"
   },
   "peerDependencies": {
