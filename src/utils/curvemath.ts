@@ -189,6 +189,20 @@ export function analyzeCurve(curve: PriceCurve): AnalyzeCurveResponse {
     };
 }
 
+export function analyzeCurveUntil(curve: PriceCurve, tokensConsumed: bigint): bigint {
+    let ethAccumulated = 0n;
+    for (let i = 0n; i < curve.numSteps; i++) {
+        if (curve.stepSize > tokensConsumed) {
+            ethAccumulated += curve.prices[Number(i)] * tokensConsumed / 10n ** 36n;
+            break;
+        } else {
+            ethAccumulated += curve.prices[Number(i)] * curve.stepSize / 10n ** 36n;
+            tokensConsumed -= curve.stepSize;
+        }
+    }
+    return ethAccumulated;
+}
+
 export class InvalidPriceCurveInput extends Error {
     constructor() {
         super("Invalid price curve input: numSteps must be > 1, startPrice must be < endPrice, and bonding curve supply must be divisible by numSteps");
