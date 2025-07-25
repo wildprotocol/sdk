@@ -1,6 +1,6 @@
 import { Log as EthersLog, Interface } from "ethers";
-import { Address, Log as ViemLog } from "viem";
-import { STATEMANAGER_ABI } from "../abis/statemanager-abi";
+import { Abi, Address, Log as ViemLog } from "viem";
+import { STATEMANAGER_ABI } from "../abis/v3/statemanager-abi";
 
 type CompatibleLog = EthersLog | ViemLog;
 
@@ -8,10 +8,12 @@ export function extractEventArgument({
   logs,
   eventName,
   argumentName,
+  abi,
 }: {
   logs: CompatibleLog[];
   eventName: string;
   argumentName: string;
+  abi: Abi;
 }): string | null {
   const iface = new Interface(STATEMANAGER_ABI);
 
