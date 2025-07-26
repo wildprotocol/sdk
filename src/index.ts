@@ -1,5 +1,3 @@
-import { BondingCurve } from "./curve";
-
 // Main SDK export
 export { DeployerSDK } from "./deployer-sdk";
 
