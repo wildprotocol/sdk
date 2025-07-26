@@ -1,6 +1,5 @@
-import { Log as EthersLog, Interface } from "ethers";
+import { Log as EthersLog, Interface, InterfaceAbi } from "ethers";
 import { Address, Log as ViemLog } from "viem";
-import { STATEMANAGER_ABI } from "../abis/statemanager-abi";
 
 type CompatibleLog = EthersLog | ViemLog;
 
@@ -8,12 +7,14 @@ export function extractEventArgument({
   logs,
   eventName,
   argumentName,
+  abi,
 }: {
   logs: CompatibleLog[];
   eventName: string;
   argumentName: string;
+  abi: InterfaceAbi;
 }): string | null {
-  const iface = new Interface(STATEMANAGER_ABI);
+  const iface = new Interface(abi);
 
   for (const log of logs) {
     try {

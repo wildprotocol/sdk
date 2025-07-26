@@ -1,26 +1,24 @@
 import {
+  BigNumberish,
   ethers,
   formatEther,
-  parseEther,
-  BigNumberish,
   formatUnits,
+  parseEther,
 } from "ethers";
+import { ABIS } from "../../abis";
+import { CONTRACTS, LATEST_VERSION } from "../../config";
 import {
-  BuyQuote,
-  SellQuote,
   AutoGraduationParams,
-  PoolKey,
-  TokenDeploymentConfig,
-  TokenState,
-  FeeSplit,
+  BuyQuote,
   FeeBreakdown,
   FeeResponse,
+  FeeSplit,
+  PoolKey,
+  SellQuote,
+  TokenDeploymentConfig,
+  TokenState,
 } from "../../types";
-import { CONTRACTS } from "../../config";
-import { DEPLOYER_ABI } from "../../abis/deployer-abi";
-import { STATEMANAGER_ABI } from "../../abis/statemanager-abi";
 import type { EthersSDKConfig } from "./types";
-import { LP_LOCKER_ABI } from "../../abis/lp-locker-abi";
 
 export class DeployerReader {
   protected contract: ethers.Contract;
@@ -28,28 +26,41 @@ export class DeployerReader {
   protected lpLockerContract: ethers.Contract;
   protected provider: ethers.Provider;
 
+  private DEPLOYER_ABI: any;
+  private STATEMANAGER_ABI: any;
+  private LP_LOCKER_ABI: any;
+
   constructor(config: EthersSDKConfig) {
     if (!config.rpcUrl) throw new Error("RPC URL is required");
 
-    const networkContracts = CONTRACTS[config.network];
+    const networkContracts =
+      CONTRACTS[config.version ?? LATEST_VERSION][config.network];
     if (!networkContracts)
       throw new Error(`Unsupported network: ${config.network}`);
+
+    const abiVersion = ABIS[config.version ?? LATEST_VERSION];
+    if (!abiVersion)
+      throw new Error(`Unsupported ABI version: ${config.version}`);
+
+    this.DEPLOYER_ABI = abiVersion.DEPLOYER_ABI;
+    this.STATEMANAGER_ABI = abiVersion.STATEMANAGER_ABI;
+    this.LP_LOCKER_ABI = abiVersion.LP_LOCKER_ABI;
 
     this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
 
     this.contract = new ethers.Contract(
       networkContracts.DEPLOYER_ADDRESS,
-      DEPLOYER_ABI,
+      this.DEPLOYER_ABI,
       this.provider
     );
     this.stateManagerContract = new ethers.Contract(
       networkContracts.STATE_MANAGER_ADDRESS,
-      STATEMANAGER_ABI,
+      this.STATEMANAGER_ABI,
       this.provider
     );
     this.lpLockerContract = new ethers.Contract(
       networkContracts.LP_LOCKER_ADDRESS,
-      LP_LOCKER_ABI,
+      this.LP_LOCKER_ABI,
       this.provider
     );
   }

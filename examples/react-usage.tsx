@@ -30,6 +30,7 @@ export default function TokenDeployer() {
     network: "base-mainnet",
     rpcUrl: "https://mainnet.base.org",
     walletClient,
+    version: "v3",
   });
 
   const [status, setStatus] = useState("");

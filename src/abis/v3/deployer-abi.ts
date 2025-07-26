@@ -46,19 +46,6 @@ export const DEPLOYER_ABI = [
   },
   {
     type: "function",
-    name: "MAX_FEE_RECEIVER_COUNT",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "uint256",
-        internalType: "uint256",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
     name: "MIN_VESTING_START_TIME",
     inputs: [],
     outputs: [
@@ -77,7 +64,7 @@ export const DEPLOYER_ABI = [
       {
         name: "tokenDeploymentConfig",
         type: "tuple",
-        internalType: "struct StateManager.TokenDeploymentConfig",
+        internalType: "struct TokenDeploymentConfig",
         components: [
           {
             name: "creator",
@@ -264,6 +251,11 @@ export const DEPLOYER_ABI = [
           },
         ],
       },
+      {
+        name: "salt",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
     outputs: [],
     stateMutability: "view",
@@ -355,6 +347,74 @@ export const DEPLOYER_ABI = [
   },
   {
     type: "function",
+    name: "emergencyEjectToken",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "to",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "finalizeEmergencyRescue",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "uniswapTokenId",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "poolKey",
+        type: "tuple",
+        internalType: "struct PoolKey",
+        components: [
+          {
+            name: "currency0",
+            type: "address",
+            internalType: "Currency",
+          },
+          {
+            name: "currency1",
+            type: "address",
+            internalType: "Currency",
+          },
+          {
+            name: "fee",
+            type: "uint24",
+            internalType: "uint24",
+          },
+          {
+            name: "tickSpacing",
+            type: "int24",
+            internalType: "int24",
+          },
+          {
+            name: "hooks",
+            type: "address",
+            internalType: "contract IHooks",
+          },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "getTokenPrice",
     inputs: [
       {
@@ -416,7 +476,7 @@ export const DEPLOYER_ABI = [
       {
         name: "tokenDeploymentConfig",
         type: "tuple",
-        internalType: "struct StateManager.TokenDeploymentConfig",
+        internalType: "struct TokenDeploymentConfig",
         components: [
           {
             name: "creator",
@@ -919,6 +979,97 @@ export const DEPLOYER_ABI = [
   },
   {
     type: "function",
+    name: "updateTokenFeeSplits",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "feeUpdate",
+        type: "tuple",
+        internalType: "struct Deployer.TokenFeeUpdate",
+        components: [
+          {
+            name: "bondingCurveBuyFee",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "bondingCurveSellFee",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "bondingCurveFeeSplits",
+            type: "tuple[]",
+            internalType: "struct FeeSplit[]",
+            components: [
+              {
+                name: "recipient",
+                type: "address",
+                internalType: "address",
+              },
+              {
+                name: "bps",
+                type: "uint256",
+                internalType: "uint256",
+              },
+            ],
+          },
+          {
+            name: "graduationFeeBps",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "graduationFeeSplits",
+            type: "tuple[]",
+            internalType: "struct FeeSplit[]",
+            components: [
+              {
+                name: "recipient",
+                type: "address",
+                internalType: "address",
+              },
+              {
+                name: "bps",
+                type: "uint256",
+                internalType: "uint256",
+              },
+            ],
+          },
+          {
+            name: "poolFees",
+            type: "uint24",
+            internalType: "uint24",
+          },
+          {
+            name: "poolFeeSplits",
+            type: "tuple[]",
+            internalType: "struct FeeSplit[]",
+            components: [
+              {
+                name: "recipient",
+                type: "address",
+                internalType: "address",
+              },
+              {
+                name: "bps",
+                type: "uint256",
+                internalType: "uint256",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "whitelistedBaseTokens",
     inputs: [
       {
@@ -1012,6 +1163,43 @@ export const DEPLOYER_ABI = [
     anonymous: false,
   },
   {
+    type: "event",
+    name: "FeeClaimed",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "recipient",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "feeToken",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "amount",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "graduated",
+        type: "bool",
+        indexed: false,
+        internalType: "bool",
+      },
+    ],
+    anonymous: false,
+  },
+  {
     type: "error",
     name: "BothTokensLaunched",
     inputs: [],
@@ -1024,16 +1212,6 @@ export const DEPLOYER_ABI = [
   {
     type: "error",
     name: "ETHTransferFailed",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "FailedToPullTokens",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "FailedToTransferTokens",
     inputs: [],
   },
   {
@@ -1113,17 +1291,6 @@ export const DEPLOYER_ABI = [
     type: "error",
     name: "Reentrancy",
     inputs: [],
-  },
-  {
-    type: "error",
-    name: "SafeERC20FailedOperation",
-    inputs: [
-      {
-        name: "token",
-        type: "address",
-        internalType: "address",
-      },
-    ],
   },
   {
     type: "error",

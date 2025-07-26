@@ -70,6 +70,7 @@ async function main() {
     network: "base-sepolia",
     rpcUrl,
     privateKey: PRIVATE_KEY,
+    version: "v3",
   });
 
   try {

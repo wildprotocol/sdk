@@ -133,6 +133,74 @@ export const STATEMANAGER_ABI = [
   },
   {
     type: "function",
+    name: "emergencyEject",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "to",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "finalizeEmergencyRescue",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "uniswapTokenId",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "poolKey",
+        type: "tuple",
+        internalType: "struct PoolKey",
+        components: [
+          {
+            name: "currency0",
+            type: "address",
+            internalType: "Currency",
+          },
+          {
+            name: "currency1",
+            type: "address",
+            internalType: "Currency",
+          },
+          {
+            name: "fee",
+            type: "uint24",
+            internalType: "uint24",
+          },
+          {
+            name: "tickSpacing",
+            type: "int24",
+            internalType: "int24",
+          },
+          {
+            name: "hooks",
+            type: "address",
+            internalType: "contract IHooks",
+          },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "getAutoGraduationParams",
     inputs: [
       {
@@ -310,7 +378,7 @@ export const STATEMANAGER_ABI = [
       {
         name: "config",
         type: "tuple",
-        internalType: "struct StateManager.TokenDeploymentConfig",
+        internalType: "struct TokenDeploymentConfig",
         components: [
           {
             name: "creator",
@@ -521,7 +589,7 @@ export const STATEMANAGER_ABI = [
       {
         name: "",
         type: "tuple",
-        internalType: "struct StateManager.TokenDeploymentConfig",
+        internalType: "struct TokenDeploymentConfig",
         components: [
           {
             name: "creator",
@@ -744,7 +812,7 @@ export const STATEMANAGER_ABI = [
       {
         name: "",
         type: "tuple",
-        internalType: "struct StateManager.TokenState",
+        internalType: "struct TokenState",
         components: [
           {
             name: "isGraduated",
@@ -1088,7 +1156,7 @@ export const STATEMANAGER_ABI = [
       {
         name: "config",
         type: "tuple",
-        internalType: "struct StateManager.TokenDeploymentConfig",
+        internalType: "struct TokenDeploymentConfig",
         components: [
           {
             name: "creator",
@@ -1517,6 +1585,209 @@ export const STATEMANAGER_ABI = [
     stateMutability: "nonpayable",
   },
   {
+    type: "function",
+    name: "updateTokenDeploymentConfig",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "config",
+        type: "tuple",
+        internalType: "struct TokenDeploymentConfig",
+        components: [
+          {
+            name: "creator",
+            type: "address",
+            internalType: "address",
+          },
+          {
+            name: "baseToken",
+            type: "address",
+            internalType: "address",
+          },
+          {
+            name: "name",
+            type: "string",
+            internalType: "string",
+          },
+          {
+            name: "symbol",
+            type: "string",
+            internalType: "string",
+          },
+          {
+            name: "image",
+            type: "string",
+            internalType: "string",
+          },
+          {
+            name: "appIdentifier",
+            type: "string",
+            internalType: "string",
+          },
+          {
+            name: "teamSupply",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "vestingStartTime",
+            type: "uint64",
+            internalType: "uint64",
+          },
+          {
+            name: "vestingDuration",
+            type: "uint64",
+            internalType: "uint64",
+          },
+          {
+            name: "vestingWallet",
+            type: "address",
+            internalType: "address",
+          },
+          {
+            name: "bondingCurveSupply",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "liquidityPoolSupply",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "totalSupply",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "bondingCurveBuyFee",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "bondingCurveSellFee",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "bondingCurveFeeSplits",
+            type: "tuple[]",
+            internalType: "struct FeeSplit[]",
+            components: [
+              {
+                name: "recipient",
+                type: "address",
+                internalType: "address",
+              },
+              {
+                name: "bps",
+                type: "uint256",
+                internalType: "uint256",
+              },
+            ],
+          },
+          {
+            name: "bondingCurveParams",
+            type: "tuple",
+            internalType: "struct PriceCurve",
+            components: [
+              {
+                name: "prices",
+                type: "uint256[]",
+                internalType: "uint256[]",
+              },
+              {
+                name: "numSteps",
+                type: "uint256",
+                internalType: "uint256",
+              },
+              {
+                name: "stepSize",
+                type: "uint256",
+                internalType: "uint256",
+              },
+            ],
+          },
+          {
+            name: "allowForcedGraduation",
+            type: "bool",
+            internalType: "bool",
+          },
+          {
+            name: "allowAutoGraduation",
+            type: "bool",
+            internalType: "bool",
+          },
+          {
+            name: "graduationFeeBps",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "graduationFeeSplits",
+            type: "tuple[]",
+            internalType: "struct FeeSplit[]",
+            components: [
+              {
+                name: "recipient",
+                type: "address",
+                internalType: "address",
+              },
+              {
+                name: "bps",
+                type: "uint256",
+                internalType: "uint256",
+              },
+            ],
+          },
+          {
+            name: "poolFees",
+            type: "uint24",
+            internalType: "uint24",
+          },
+          {
+            name: "poolFeeSplits",
+            type: "tuple[]",
+            internalType: "struct FeeSplit[]",
+            components: [
+              {
+                name: "recipient",
+                type: "address",
+                internalType: "address",
+              },
+              {
+                name: "bps",
+                type: "uint256",
+                internalType: "uint256",
+              },
+            ],
+          },
+          {
+            name: "surgeFeeStartingTime",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "surgeFeeDuration",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "maxSurgeFeeBps",
+            type: "uint256",
+            internalType: "uint256",
+          },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
     type: "event",
     name: "BondingCurveSwap",
     inputs: [
@@ -1630,6 +1901,83 @@ export const STATEMANAGER_ABI = [
   },
   {
     type: "event",
+    name: "TokenEmergencyEjected",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "liquidityTokens",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "baseTokens",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "TokenEmergencyRescued",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "uniswapTokenId",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "poolKey",
+        type: "tuple",
+        indexed: false,
+        internalType: "struct PoolKey",
+        components: [
+          {
+            name: "currency0",
+            type: "address",
+            internalType: "Currency",
+          },
+          {
+            name: "currency1",
+            type: "address",
+            internalType: "Currency",
+          },
+          {
+            name: "fee",
+            type: "uint24",
+            internalType: "uint24",
+          },
+          {
+            name: "tickSpacing",
+            type: "int24",
+            internalType: "int24",
+          },
+          {
+            name: "hooks",
+            type: "address",
+            internalType: "contract IHooks",
+          },
+        ],
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
     name: "TokenGraduated",
     inputs: [
       {
@@ -1667,7 +2015,7 @@ export const STATEMANAGER_ABI = [
         name: "config",
         type: "tuple",
         indexed: false,
-        internalType: "struct StateManager.TokenDeploymentConfig",
+        internalType: "struct TokenDeploymentConfig",
         components: [
           {
             name: "creator",
@@ -1872,27 +2220,7 @@ export const STATEMANAGER_ABI = [
   },
   {
     type: "error",
-    name: "CurveSupplyExhausted",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "FailedToPullTokens",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "FailedToTransferTokens",
-    inputs: [],
-  },
-  {
-    type: "error",
     name: "InsufficientETHSent",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "InsufficientInputAmount",
     inputs: [],
   },
   {
@@ -1907,17 +2235,7 @@ export const STATEMANAGER_ABI = [
   },
   {
     type: "error",
-    name: "InvalidFeeSplits",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "InvalidPriceX96",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "InvalidToken0Amount",
+    name: "InvalidOperation",
     inputs: [],
   },
   {
@@ -1933,11 +2251,6 @@ export const STATEMANAGER_ABI = [
   {
     type: "error",
     name: "NoFeeToClaim",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "NotEnoughTokensToSell",
     inputs: [],
   },
   {
@@ -1969,54 +2282,7 @@ export const STATEMANAGER_ABI = [
   },
   {
     type: "error",
-    name: "SafeERC20FailedOperation",
-    inputs: [
-      {
-        name: "token",
-        type: "address",
-        internalType: "address",
-      },
-    ],
-  },
-  {
-    type: "error",
     name: "SlippageExceeded",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "StartTickTooLarge",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "SubByTooLarge",
-    inputs: [
-      {
-        name: "subBy",
-        type: "uint256",
-        internalType: "uint256",
-      },
-      {
-        name: "sqrtTargetPrice",
-        type: "uint256",
-        internalType: "uint256",
-      },
-    ],
-  },
-  {
-    type: "error",
-    name: "TickNotMultipleOfSpacing",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "TickTooLarge",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "TickTooSmall",
     inputs: [],
   },
   {
@@ -2037,11 +2303,6 @@ export const STATEMANAGER_ABI = [
   {
     type: "error",
     name: "TokenNotReadyForGraduation",
-    inputs: [],
-  },
-  {
-    type: "error",
-    name: "UnexpectedCrash",
     inputs: [],
   },
 ] as const;
