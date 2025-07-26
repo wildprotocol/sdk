@@ -4,6 +4,8 @@ export { DeployerSDK } from "./deployer-sdk";
 export { EthersDeployer } from "./clients/ethers";
 export { ViemDeployer } from "./clients/viem";
 
+export { BondingCurve } from "./curve/index";
+
 // Type exports
 export * from "./types";
 

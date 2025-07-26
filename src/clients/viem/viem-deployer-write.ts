@@ -226,11 +226,35 @@ export class ViemDeployerWriter {
   }
 
   async claimFee(token: string, options?: TransactionOptions) {
+    let gasPrice: bigint | undefined;
+
+    if (options?.gasPrice) {
+      gasPrice = options.gasPrice;
+    } else {
+      try {
+        const estimatedGas = await this.publicClient.estimateContractGas({
+          address: this.deployerAddress as Address,
+          abi: this.DEPLOYER_ABI,
+          functionName: "claimFee",
+          args: [token as `0x${string}`],
+          account: this.walletClient.account!.address,
+        });
+        gasPrice = (estimatedGas * 120n) / 100n; // 20% buffer
+      } catch (err) {
+        console.warn(
+          "Gas estimation for claimFee failed. Falling back to 7M",
+          err
+        );
+        gasPrice = 10_000_000n;
+      }
+    }
+
     const tx = await this.walletClient.writeContract({
       address: this.deployerAddress,
       abi: this.DEPLOYER_ABI,
       functionName: "claimFee",
       args: [token as `0x${string}`],
+      gasPrice: gasPrice,
       ...this.buildTxOptions(options),
     });
 

@@ -245,10 +245,32 @@ export class DeployerWriter {
   ): Promise<ContractTransactionResponse> {
     if (!this.signer) throw new Error("Signer is required for claiming fees");
 
-    const txOptions: any = {
-      gasLimit: options?.gasLimit || 700000,
-    };
-    if (options?.gasPrice) txOptions.gasPrice = options.gasPrice;
+    const txOptions: any = {};
+
+    // If user provides gasPrice, include it
+    if (options?.gasPrice) {
+      txOptions.gasPrice = options.gasPrice;
+    }
+
+    if (options?.gasLimit) {
+      // Use user-provided gas limit directly
+      txOptions.gasLimit = options.gasLimit;
+    } else {
+      // Try to estimate gas and apply 20% buffer
+      try {
+        const estimatedGas = await this.contract.claimFee.estimateGas(
+          token,
+          txOptions
+        );
+        txOptions.gasLimit = (estimatedGas * 120n) / 100n; // 20% buffer
+      } catch (err) {
+        console.warn(
+          "Gas estimation for claimFee failed. Using fallback gasLimit.",
+          err
+        );
+        txOptions.gasLimit = 10_000_000n; // Fallback if estimation fails
+      }
+    }
 
     return await this.contract.claimFee(token, txOptions);
   }
