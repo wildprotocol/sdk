@@ -14,14 +14,19 @@ export function useDeployerSDK<T extends SDKConfig>(config: T) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (config.client === "viem" && !config.walletClient) {
-      console.warn("walletClient is required for viem client");
-      return;
-    }
-
     const initSDK = async () => {
       setIsLoading(true);
       try {
+        if (config.client === "viem" && !config.walletClient) {
+          console.warn(
+            "[useDeployerSDK] viem client initialized without walletClient. Only read operations will be available."
+          );
+        }
+        if (config.client === "ethers" && !config.signer) {
+          console.warn(
+            "[useDeployerSDK] ethers client initialized without signer. Only read operations will be available."
+          );
+        }
         const deployer = await DeployerSDK.getDeployer(config);
         setSdk(deployer as DeployerType<T>);
       } catch (err) {

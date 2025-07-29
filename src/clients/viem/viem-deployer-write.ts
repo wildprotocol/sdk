@@ -63,7 +63,7 @@ export class ViemDeployerWriter {
       });
     } else {
       throw new Error(
-        "Wallet Client or Private Key is required for write operations"
+        "ViemDeployerWriter requires either a walletClient or a privateKey"
       );
     }
   }
