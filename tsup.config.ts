@@ -13,7 +13,14 @@ export default defineConfig([
     outExtension({ format }) {
       return { js: format === "esm" ? ".mjs" : ".cjs" };
     },
-    external: ["react", "react-dom", "lightweight-charts"],
+    external: [
+      "react",
+      "react-dom",
+      "lightweight-charts",
+      "wagmi",
+      "viem",
+      "@tanstack/react-query",
+    ],
   },
   {
     entry: ["src/react/index.ts"],
@@ -26,6 +33,13 @@ export default defineConfig([
     outExtension() {
       return { js: ".mjs" };
     },
-    external: ["react", "react-dom", "lightweight-charts"],
+    external: [
+      "react",
+      "react-dom",
+      "lightweight-charts",
+      "wagmi",
+      "viem",
+      "@@tanstack/react-query",
+    ],
   },
 ]);
