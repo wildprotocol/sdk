@@ -38,6 +38,8 @@ interface Theme {
   borderColor?: string;
   secondaryTextColor?: string;
   btnTextColor?: string;
+  tokenTextColor?: string;
+  loaderColor?: string;
 }
 
 interface SwapStatus {
@@ -55,6 +57,8 @@ const DEFAULT_THEME: Theme = {
   secondaryTextColor: "#898989",
   borderColor: "#3a3a3a",
   btnTextColor: "#ffffff",
+  tokenTextColor: "#ffffff",
+  loaderColor: "#ffffffb5",
 };
 
 export function Swap({
@@ -406,7 +410,13 @@ export function Swap({
               Balance:{" "}
               {inputTokenStore?.config.symbol === "ETH" ? (
                 isLoadingWalletBalance ? (
-                  <div className="bg-black h-[16px] w-10 rounded-xl animate-pulse"></div>
+                  <div
+                    className="h-[16px] w-10 rounded-xl animate-pulse"
+                    style={{
+                      background:
+                        theme?.loaderColor || DEFAULT_THEME.loaderColor,
+                    }}
+                  ></div>
                 ) : (
                   (walletBalance &&
                     parseFloat(walletBalance?.formatted!).toFixed(2)) ||
@@ -435,7 +445,12 @@ export function Swap({
               </AvatarFallback>
             </Avatar>
 
-            <p className="font-semibold text-white text-sm truncate">
+            <p
+              className="font-semibold text-sm truncate"
+              style={{
+                color: theme?.tokenTextColor || DEFAULT_THEME.tokenTextColor,
+              }}
+            >
               {inputTokenStore?.config.symbol}
             </p>
           </div>
@@ -502,7 +517,12 @@ export function Swap({
           <div className="w-[60%]">
             {inputTokenStore?.config.symbol === "ETH" ? (
               isLoadingBuyQuote ? (
-                <div className="bg-black h-9 w-36 rounded-xl animate-pulse"></div>
+                <div
+                  className="h-9 w-36 rounded-xl animate-pulse"
+                  style={{
+                    background: theme?.loaderColor || DEFAULT_THEME.loaderColor,
+                  }}
+                ></div>
               ) : (
                 <input
                   value={
@@ -526,7 +546,12 @@ export function Swap({
                 />
               )
             ) : isLoadingSellQuote ? (
-              <div className="bg-black h-9 w-36 rounded-xl animate-pulse"></div>
+              <div
+                className="h-9 w-36 rounded-xl animate-pulse"
+                style={{
+                  background: theme?.loaderColor || DEFAULT_THEME.loaderColor,
+                }}
+              ></div>
             ) : (
               <input
                 value={
@@ -559,7 +584,13 @@ export function Swap({
               Balance:{" "}
               {inputTokenStore?.config.symbol !== "ETH" ? (
                 isLoadingWalletBalance ? (
-                  <div className="bg-black h-[16px] w-10 rounded-xl animate-pulse"></div>
+                  <div
+                    className="h-[16px] w-10 rounded-xl animate-pulse"
+                    style={{
+                      background:
+                        theme?.loaderColor || DEFAULT_THEME.loaderColor,
+                    }}
+                  ></div>
                 ) : (
                   (walletBalance &&
                     parseFloat(walletBalance?.formatted!).toFixed(2)) ||
@@ -587,7 +618,12 @@ export function Swap({
                 {outputTokenStore?.config.name?.[0]}
               </AvatarFallback>
             </Avatar>
-            <p className="font-semibold text-white text-sm truncate">
+            <p
+              className="font-semibold text-sm truncate"
+              style={{
+                color: theme?.tokenTextColor || DEFAULT_THEME.tokenTextColor,
+              }}
+            >
               {outputTokenStore?.config.symbol}
             </p>
           </div>
@@ -604,7 +640,12 @@ export function Swap({
         >
           Slippage:{" "}
           {isLoadingSlippage ? (
-            <div className="h-3 w-7 bg-white/30 animate-pulse rounded-lg" />
+            <div
+              className="h-3 w-7 animate-pulse rounded-lg"
+              style={{
+                background: theme?.loaderColor || DEFAULT_THEME.loaderColor,
+              }}
+            />
           ) : (
             slippage?.toFixed(2) || "0.00"
           )}
@@ -615,7 +656,12 @@ export function Swap({
           <div className="text-white flex items-center gap-1">
             {isEthInput ? (
               isLoadingBuyQuoteSmallestWei ? (
-                <p className="bg-white/10 h-[14px] w-14 animate-pulse rounded-full"></p>
+                <p
+                  className="h-[14px] w-14 animate-pulse rounded-full"
+                  style={{
+                    background: theme?.loaderColor || DEFAULT_THEME.loaderColor,
+                  }}
+                ></p>
               ) : (
                 formatNumberMagnitude(
                   Number(buyQuotreference?.amountOut ?? 0) /
@@ -623,7 +669,12 @@ export function Swap({
                 ) || "0.00"
               )
             ) : isLoadingSellQuoteSmallestWei ? (
-              <p className="bg-white/10 h-[14px] w-14 animate-pulse rounded-full"></p>
+              <p
+                className="h-[14px] w-14 animate-pulse rounded-full"
+                style={{
+                  background: theme?.loaderColor || DEFAULT_THEME.loaderColor,
+                }}
+              ></p>
             ) : (
               formatNumberMagnitude(
                 Number(sellQuotreference?.amountOut ?? 0) /
@@ -638,7 +689,12 @@ export function Swap({
               }}
             >
               {isLoadingETHPrice ? (
-                <p className="bg-white/10 h-[14px] w-14 animate-pulse rounded-full"></p>
+                <p
+                  className="h-[14px] w-14 animate-pulse rounded-full"
+                  style={{
+                    background: theme?.loaderColor || DEFAULT_THEME.loaderColor,
+                  }}
+                ></p>
               ) : (
                 <p>(${ethPrice})</p>
               )}
