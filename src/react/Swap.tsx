@@ -440,7 +440,12 @@ export function Swap({
                 alt={inputTokenStore?.config.name}
                 className={`transition-transform w-7 h-7 rounded-full`}
               />
-              <AvatarFallback className="bg-gray-600 text-white text-base rounded-xl flex items-center justify-center">
+              <AvatarFallback
+                className="bg-gray-600 text-base rounded-xl flex items-center justify-center"
+                style={{
+                  color: theme?.tokenTextColor || DEFAULT_THEME.tokenTextColor,
+                }}
+              >
                 {inputTokenStore?.config.name?.[0]}
               </AvatarFallback>
             </Avatar>
@@ -614,7 +619,12 @@ export function Swap({
                 alt={outputTokenStore?.config.name}
                 className={`transition-transform w-7 h-7 rounded-full`}
               />
-              <AvatarFallback className="bg-gray-600 text-white text-base rounded-xl flex items-center justify-center">
+              <AvatarFallback
+                className="bg-gray-600 text-white text-base rounded-xl flex items-center justify-center"
+                style={{
+                  color: theme?.tokenTextColor || DEFAULT_THEME.tokenTextColor,
+                }}
+              >
                 {outputTokenStore?.config.name?.[0]}
               </AvatarFallback>
             </Avatar>
